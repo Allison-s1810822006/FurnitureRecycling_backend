@@ -1,4 +1,4 @@
-package edu.fcu.furniturerecyclingbackend.entity;
+package edu.fcu.furniturerecyclingbackend.model;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.UuidGenerator;

@@ -1,4 +1,9 @@
 package edu.fcu.furniturerecyclingbackend.repository;
 
-public class ApplicationRepository {
+import edu.fcu.furniturerecyclingbackend.model.Application;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
+
+public interface ApplicationRepository extends JpaRepository<Application, UUID> {
 }
