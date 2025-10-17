@@ -9,5 +9,6 @@ public interface AppUsersRepository extends JpaRepository<App_Users, UUID> {
 
     // 自訂根據 email 查找使用者的方法
     Optional<App_Users> findByEmail(String email);
+    boolean existsByEmail(String email);
 }
 

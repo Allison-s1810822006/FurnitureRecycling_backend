@@ -30,6 +30,9 @@ public class App_Users {
     public App_Users() {
     }
 
+    public App_Users(String fullName, String email, String encodedPassword) {
+    }
+
     // Getters and Setters
     public UUID getUserId() {
         return userId;
@@ -88,5 +91,4 @@ public class App_Users {
     }
 
     // Override toString, equals, and hashCode if necessary
-
 }
