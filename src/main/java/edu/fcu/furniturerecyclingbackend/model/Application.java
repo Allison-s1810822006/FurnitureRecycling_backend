@@ -1,83 +1,93 @@
 package edu.fcu.furniturerecyclingbackend.model;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.UuidGenerator;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import java.time.LocalDate;        // 對應 Postgres 的 date
-import java.time.OffsetDateTime;  // 對應 Postgres 的 timestamptz
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
 @Table(name = "applications")
 public class Application {
 
-    // PK: application_id (uuid)
     @Id
-    @GeneratedValue                 // 讓 Hibernate 自動產生 UUID（或用 DB 預設也可）
-    @UuidGenerator
-    @Column(name = "application_id")
-    private UUID applicationId;
+    @Column(name = "application_id", columnDefinition = "uuid")
+    private UUID applicationId; // 對齊資料表欄位名稱
 
-    // FK / 參考鍵：都用 uuid
-    @Column(name = "user_id")
+    @Column(name = "user_id", columnDefinition = "uuid")
     private UUID userId;
 
-    @Column(name = "station_id")
+    @Column(name = "station_id", columnDefinition = "uuid")
     private UUID stationId;
 
-    @Column(name = "schedule_id")
+    @Column(name = "schedule_id", columnDefinition = "uuid")
     private UUID scheduleId;
 
-    @Column(name = "furniture_id")
-    private UUID furnitureId;
-
-    // 申請日期：date -> LocalDate
-    @Column(name = "requested_date")
+    @Column(name = "requested_date", nullable = false)
     private LocalDate requestedDate;
 
-    // 狀態：text -> String
-    @Column(name = "status")
-    private String status;
+    @Column(name = "status", nullable = false)
+    private String status = "SUBMITTED";
 
-    // 系統時間：timestamptz -> OffsetDateTime
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
     @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
+    private Instant updatedAt;
 
-    // 附件連結或文字：text -> String
-    @Column(name = "photo")
-    private String photo;
+    @Column(name = "drop_point_code")
+    private String dropPointCode;
 
-    // ---- getters & setters ----
-    public UUID getApplicationId() { return applicationId; }
-    public void setApplicationId(UUID applicationId) { this.applicationId = applicationId; }
+    @Column(name = "total_items", nullable = false)
+    private Integer totalItems = 0;
 
-    public UUID getUserId() { return userId; }
-    public void setUserId(UUID userId) { this.userId = userId; }
+    @Column(name = "total_volume_m3", precision = 10, scale = 3, nullable = false)
+    private BigDecimal totalVolumeM3 = BigDecimal.ZERO;
 
-    public UUID getStationId() { return stationId; }
-    public void setStationId(UUID stationId) { this.stationId = stationId; }
+    @Column(name = "suggested_vehicle", nullable = false)
+    private String suggestedVehicle = "FLATBED";
 
-    public UUID getScheduleId() { return scheduleId; }
-    public void setScheduleId(UUID scheduleId) { this.scheduleId = scheduleId; }
+    // 一對多：一張申請有多筆家具
+    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FurnitureItem> items = new ArrayList<>();
 
-    public UUID getFurnitureId() { return furnitureId; }
-    public void setFurnitureId(UUID furnitureId) { this.furnitureId = furnitureId; }
+    /** 自動帶入 UUID / 時間戳 */
+    @PrePersist
+    public void prePersist() {
+        if (this.applicationId == null) {
+            this.applicationId = UUID.randomUUID();
+        }
+        if (this.createdAt == null) {
+            this.createdAt = Instant.now();
+        }
+        this.updatedAt = Instant.now();
+    }
 
-    public LocalDate getRequestedDate() { return requestedDate; }
-    public void setRequestedDate(LocalDate requestedDate) { this.requestedDate = requestedDate; }
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = Instant.now();
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    /** 關聯維護方法 */
+    public void addItem(FurnitureItem item) {
+        if (item == null) return;
+        item.setApplication(this);   // 反向關聯
+        this.items.add(item);
+    }
 
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
-
-    public OffsetDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
-
-    public String getPhoto() { return photo; }
-    public void setPhoto(String photo) { this.photo = photo; }
+    public void setItems(List<FurnitureItem> items) {
+        this.items.clear();
+        if (items != null) {
+            for (FurnitureItem it : items) addItem(it);
+        }
+    }
 }
