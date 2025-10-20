@@ -1,12 +1,18 @@
 package edu.fcu.furniturerecyclingbackend.service;
 
 import edu.fcu.furniturerecyclingbackend.dto.ApplicationRequestDto;
-import edu.fcu.furniturerecyclingbackend.model.Application;
+import edu.fcu.furniturerecyclingbackend.dto.ApplicationResponseDto;
+import edu.fcu.furniturerecyclingbackend.model.*;
 import edu.fcu.furniturerecyclingbackend.repository.ApplicationRepository;
+import edu.fcu.furniturerecyclingbackend.repository.ScheduleRepository;
+import edu.fcu.furniturerecyclingbackend.repository.StationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -14,58 +20,128 @@ import java.util.UUID;
 public class ApplicationService {
 
     private final ApplicationRepository applicationRepository;
+    private final StationRepository stationRepository;
+    private final ScheduleRepository scheduleRepository;
 
-    // 建立
-    public Application createApplication(ApplicationRequestDto dto) {
+    /** 建立新的清運申請 → 回傳 DTO */
+    @Transactional
+    public ApplicationResponseDto createApplication(ApplicationRequestDto dto) {
+        // 驗證 DropPoint 代碼（用 enum）
+        if (!DropPoint.isValid(dto.getDropPointCode())) {
+            throw new IllegalArgumentException("Invalid dropPointCode");
+        }
+
+        // 驗證站點
+        Station station = stationRepository.findById(dto.getStationId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid stationId"));
+
+        // 驗證時段
+        Schedule schedule = scheduleRepository.findById(dto.getScheduleId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid scheduleId"));
+
+        // 驗證日期一致
+        if (!schedule.getScheduleDate().equals(dto.getRequestedDate())) {
+            throw new IllegalArgumentException("requestedDate must equal schedule_date");
+        }
+
         Application app = new Application();
         app.setUserId(dto.getUserId());
-        app.setStationId(dto.getStationId());
-        app.setScheduleId(dto.getScheduleId());
+        app.setStation(station);                  // 關聯實體
+        app.setSchedule(schedule);                // 關聯實體
         app.setDropPointCode(dto.getDropPointCode());
         app.setRequestedDate(dto.getRequestedDate());
-        app.setTotalItems(dto.getTotalItems() != null ? dto.getTotalItems() : 0);
-        app.setTotalVolumeM3(dto.getTotalVolumeM3() != null ? dto.getTotalVolumeM3() : java.math.BigDecimal.ZERO);
-        app.setSuggestedVehicle(dto.getSuggestedVehicle() != null ? dto.getSuggestedVehicle() : "FLATBED");
-        app.setStatus(dto.getStatus() != null ? dto.getStatus() : "SUBMITTED");
-        // id / createdAt / updatedAt 交給 @PrePersist / @PreUpdate
-        return applicationRepository.save(app);
+        app.setTotalItems(Optional.ofNullable(dto.getTotalItems()).orElse(0));
+        app.setTotalVolumeM3(Optional.ofNullable(dto.getTotalVolumeM3()).orElse(BigDecimal.ZERO));
+        app.setSuggestedVehicle(Optional.ofNullable(dto.getSuggestedVehicle()).orElse("FLATBED"));
+        app.setStatus(Optional.ofNullable(dto.getStatus()).orElse(ApplicationStatus.SUBMITTED));
+
+        // 時間交給 @PrePersist/@PreUpdate
+        Application saved = applicationRepository.save(app);
+        return toDto(saved);
     }
 
-    // 全部查詢
-    public List<Application> findAll() {
-        return applicationRepository.findAll();
+    /** 查全部 → 回傳 DTO 列表 */
+    public List<ApplicationResponseDto> findAll() {
+        return applicationRepository.findAll()
+                .stream()
+                .map(this::toDto)
+                .toList();
     }
 
-    // 以 id 查詢（找不到回傳 null，交由 Controller 決定回 404）
-    public Application findById(UUID id) {
-        return applicationRepository.findById(id).orElse(null);
+    /** 查單一 → 回傳 DTO（或 null） */
+    public ApplicationResponseDto findById(UUID id) {
+        return applicationRepository.findById(id)
+                .map(this::toDto)
+                .orElse(null);
     }
 
-    // 更新（僅覆蓋有帶值的欄位）
-    public Application update(UUID id, ApplicationRequestDto dto) {
+    /** 更新（部分欄位） → 回傳 DTO */
+    @Transactional
+    public ApplicationResponseDto update(UUID id, ApplicationRequestDto dto) {
         Application app = applicationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Application not found"));
 
-        if (dto.getDropPointCode() != null) app.setDropPointCode(dto.getDropPointCode());
+        if (dto.getStationId() != null) {
+            Station station = stationRepository.findById(dto.getStationId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid stationId"));
+            app.setStation(station);
+        }
+        if (dto.getScheduleId() != null) {
+            Schedule schedule = scheduleRepository.findById(dto.getScheduleId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid scheduleId"));
+            app.setSchedule(schedule);
+            // 你若希望更新時也檢查日期一致，可打開以下檢查：
+            // if (dto.getRequestedDate() != null && !schedule.getScheduleDate().equals(dto.getRequestedDate())) {
+            //     throw new IllegalArgumentException("requestedDate must equal schedule_date");
+            // }
+        }
+
         if (dto.getRequestedDate() != null) app.setRequestedDate(dto.getRequestedDate());
+        if (dto.getDropPointCode() != null) {
+            if (!DropPoint.isValid(dto.getDropPointCode())) {
+                throw new IllegalArgumentException("Invalid dropPointCode");
+            }
+            app.setDropPointCode(dto.getDropPointCode());
+        }
         if (dto.getTotalItems() != null) app.setTotalItems(dto.getTotalItems());
         if (dto.getTotalVolumeM3() != null) app.setTotalVolumeM3(dto.getTotalVolumeM3());
         if (dto.getSuggestedVehicle() != null) app.setSuggestedVehicle(dto.getSuggestedVehicle());
-        if (dto.getStatus() != null) app.setStatus(dto.getStatus());
-        if (dto.getStationId() != null) app.setStationId(dto.getStationId());
-        if (dto.getScheduleId() != null) app.setScheduleId(dto.getScheduleId());
-        // userId 通常不允許改，如要改再打開：
-        // if (dto.getUserId() != null) app.setUserId(dto.getUserId());
+        if (dto.getStatus() != null) app.setStatus(dto.getStatus()); // enum
 
-        return applicationRepository.save(app);
+        Application saved = applicationRepository.save(app);
+        return toDto(saved);
     }
 
-    // 刪除（找不到視為已不存在）
+    /** 刪除 → 回傳是否成功 */
+    @Transactional
     public boolean delete(UUID id) {
-        if (!applicationRepository.existsById(id)) {
-            return false;
+        if (applicationRepository.existsById(id)) {
+            applicationRepository.deleteById(id);
+            return true;
         }
-        applicationRepository.deleteById(id);
-        return true;
+        return false;
+    }
+
+    /* ===================== Private Mapper ===================== */
+
+    /** 實體 → DTO（把關聯物件攤平成 ID，避免 swagger 掃描到雙向關聯） */
+    private ApplicationResponseDto toDto(Application app) {
+        ApplicationResponseDto dto = new ApplicationResponseDto();
+        dto.setApplicationId(app.getApplicationId());
+        dto.setUserId(app.getUserId());
+        dto.setStationId(app.getStation() != null ? app.getStation().getStationId() : null);
+
+        dto.setScheduleId(app.getSchedule() != null ? app.getSchedule().getScheduleId() : null);
+
+        dto.setDropPointCode(app.getDropPointCode());
+        dto.setRequestedDate(app.getRequestedDate());
+        dto.setTotalItems(app.getTotalItems());
+        dto.setTotalVolumeM3(app.getTotalVolumeM3());
+        dto.setSuggestedVehicle(app.getSuggestedVehicle());
+        dto.setStatus(app.getStatus());
+        dto.setCreatedAt(app.getCreatedAt());
+        dto.setUpdatedAt(app.getUpdatedAt());
+        return dto;
     }
 }
+

@@ -1,6 +1,7 @@
 package edu.fcu.furniturerecyclingbackend.controller;
 
 import edu.fcu.furniturerecyclingbackend.dto.ApplicationRequestDto;
+import edu.fcu.furniturerecyclingbackend.dto.ApplicationResponseDto;
 import edu.fcu.furniturerecyclingbackend.model.Application;
 import edu.fcu.furniturerecyclingbackend.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -18,44 +19,34 @@ public class ApplicationController {
 
     private final ApplicationService applicationService;
 
-    // Create
+    // 建立
+
     @PostMapping
-    public ResponseEntity<Application> createApplication(@RequestBody ApplicationRequestDto dto) {
-        Application newApp = applicationService.createApplication(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(newApp);
+    public ResponseEntity<ApplicationResponseDto> createApplication(@RequestBody ApplicationRequestDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(applicationService.createApplication(dto));
     }
 
-    // Read - list
     @GetMapping
-    public ResponseEntity<List<Application>> getAllApplications() {
+    public ResponseEntity<List<ApplicationResponseDto>> getAllApplications() {
         return ResponseEntity.ok(applicationService.findAll());
     }
 
-    // Read - by id
     @GetMapping("/{id}")
-    public ResponseEntity<Application> getApplicationById(@PathVariable UUID id) {
-        Application app = applicationService.findById(id);
-        if (app == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(app);
+    public ResponseEntity<ApplicationResponseDto> getApplicationById(@PathVariable UUID id) {
+        ApplicationResponseDto dto = applicationService.findById(id);
+        return dto != null ? ResponseEntity.ok(dto) : ResponseEntity.notFound().build();
     }
 
-    // Update (部分欄位更新；用同一個 DTO，僅覆蓋有帶值者)
     @PutMapping("/{id}")
-    public ResponseEntity<Application> updateApplication(@PathVariable UUID id,
-                                                         @RequestBody ApplicationRequestDto dto) {
-        try {
-            Application saved = applicationService.update(id, dto);
-            return ResponseEntity.ok(saved);
-        } catch (IllegalArgumentException notFound) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ApplicationResponseDto> updateApplication(
+            @PathVariable UUID id, @RequestBody ApplicationRequestDto dto) {
+        return ResponseEntity.ok(applicationService.update(id, dto));
     }
 
-    // Delete
+    // 刪除
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApplication(@PathVariable UUID id) {
-        boolean existed = applicationService.delete(id);
-        return existed ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+        boolean deleted = applicationService.delete(id);
+        return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 }
