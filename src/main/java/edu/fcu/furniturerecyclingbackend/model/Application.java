@@ -1,83 +1,70 @@
 package edu.fcu.furniturerecyclingbackend.model;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.UuidGenerator;
-
-import java.time.LocalDate;        // 對應 Postgres 的 date
-import java.time.OffsetDateTime;  // 對應 Postgres 的 timestamptz
+import lombok.Getter;
+import lombok.Setter;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
 @Table(name = "applications")
+@Getter @Setter
 public class Application {
 
-    // PK: application_id (uuid)
     @Id
-    @GeneratedValue                 // 讓 Hibernate 自動產生 UUID（或用 DB 預設也可）
-    @UuidGenerator
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "application_id")
     private UUID applicationId;
 
-    // FK / 參考鍵：都用 uuid
-    @Column(name = "user_id")
+    @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "station_id")
-    private UUID stationId;
+    // 關聯：行程
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "schedule_id")
+    private Schedule schedule;
 
-    @Column(name = "schedule_id")
-    private UUID scheduleId;
+    // 關聯：清運站
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "station_id")
+    private Station station;
 
-    @Column(name = "furniture_id")
-    private UUID furnitureId;
+    @Column(name = "drop_point_code")
+    private String dropPointCode;
 
-    // 申請日期：date -> LocalDate
-    @Column(name = "requested_date")
+    @Column(name = "requested_date", nullable = false)
     private LocalDate requestedDate;
 
-    // 狀態：text -> String
-    @Column(name = "status")
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ApplicationStatus status = ApplicationStatus.SUBMITTED;
 
-    // 系統時間：timestamptz -> OffsetDateTime
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
+    @Column(name = "suggested_vehicle")
+    private String suggestedVehicle;
 
-    @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
+    @Column(name = "total_items", nullable = false)
+    private Integer totalItems = 0;
 
-    // 附件連結或文字：text -> String
-    @Column(name = "photo")
-    private String photo;
+    @Column(name = "total_volume_m3", nullable = false)
+    private BigDecimal totalVolumeM3 = BigDecimal.ZERO;
 
-    // ---- getters & setters ----
-    public UUID getApplicationId() { return applicationId; }
-    public void setApplicationId(UUID applicationId) { this.applicationId = applicationId; }
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
-    public UUID getUserId() { return userId; }
-    public void setUserId(UUID userId) { this.userId = userId; }
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 
-    public UUID getStationId() { return stationId; }
-    public void setStationId(UUID stationId) { this.stationId = stationId; }
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        createdAt = now;
+        updatedAt = now;
+    }
 
-    public UUID getScheduleId() { return scheduleId; }
-    public void setScheduleId(UUID scheduleId) { this.scheduleId = scheduleId; }
-
-    public UUID getFurnitureId() { return furnitureId; }
-    public void setFurnitureId(UUID furnitureId) { this.furnitureId = furnitureId; }
-
-    public LocalDate getRequestedDate() { return requestedDate; }
-    public void setRequestedDate(LocalDate requestedDate) { this.requestedDate = requestedDate; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
-
-    public OffsetDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
-
-    public String getPhoto() { return photo; }
-    public void setPhoto(String photo) { this.photo = photo; }
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
+    }
 }
