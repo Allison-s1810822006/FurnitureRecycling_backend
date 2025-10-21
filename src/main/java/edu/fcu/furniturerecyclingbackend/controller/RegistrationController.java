@@ -16,12 +16,16 @@ public class RegistrationController {
 
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegistrationDTO registrationDTO) {
-        boolean success = registrationService.registerUser(registrationDTO);
-        if (success) {
-            return ResponseEntity.ok("註冊成功");
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("該郵箱已經註冊");
+        String result = registrationService.registerUser(registrationDTO);
+        switch (result) {
+            case "OK":
+                return ResponseEntity.ok("註冊成功");
+            case "INVALID_EMAIL":
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("無效的電子郵件格式");
+            case "EMAIL_EXISTS":
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("該郵箱已經註冊");
+            default:
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("註冊失敗");
         }
     }
 }
-

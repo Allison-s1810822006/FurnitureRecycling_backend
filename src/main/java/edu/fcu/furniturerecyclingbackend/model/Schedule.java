@@ -17,22 +17,29 @@ import java.util.UUID;
 public class Schedule {
 
     @Id
-    @Column(name = "schedule_id", columnDefinition = "uuid")
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "schedule_id", columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID scheduleId;
 
     @Column(name = "schedule_date", nullable = false)
-    private LocalDate scheduleDate;
+    private LocalDate scheduleDate; // 排程日期
 
     @Column(name = "sequence_no", nullable = false)
-    private Integer sequenceNo;
+    private Integer sequenceNo; // 行程順序編號
 
     @Column(name = "eta", nullable = false)
-    private Instant eta;      // timestamptz -> Instant
+    private Instant eta; // 預估抵達時間 (timestamptz)
 
     @Column(name = "plate_number", nullable = false)
-    private String plateNumber;
+    private String plateNumber; // 車牌號碼
 
-    // 如需自動產生 UUID，可加這段
+    // （選擇性）如果之後想讓 Schedule 反向查 Application，可開啟這段：
+    /*
+    @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = false)
+    @com.fasterxml.jackson.annotation.JsonManagedReference("schedule-apps")
+    private List<Application> applications = new ArrayList<>();
+    */
+
     @PrePersist
     public void prePersist() {
         if (this.scheduleId == null) this.scheduleId = UUID.randomUUID();

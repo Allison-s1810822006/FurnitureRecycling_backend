@@ -19,8 +19,6 @@ public class ApplicationController {
 
     private final ApplicationService applicationService;
 
-    // 建立
-
     @PostMapping
     public ResponseEntity<ApplicationResponseDto> createApplication(@RequestBody ApplicationRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(applicationService.createApplication(dto));
