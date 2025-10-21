@@ -31,6 +31,9 @@ public class App_Users {
     }
 
     public App_Users(String fullName, String email, String encodedPassword) {
+        this.fullName = fullName;
+        this.email = email;
+        this.passwordHash = encodedPassword;
     }
 
     // Getters and Setters

@@ -1,8 +1,10 @@
 package edu.fcu.furniturerecyclingbackend.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -10,7 +12,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "applications")
-@Getter @Setter
+@Getter
+@Setter
 public class Application {
 
     @Id
@@ -21,14 +24,15 @@ public class Application {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    // 關聯：行程
+    // 關聯：行程（單向；Schedule 端沒有回指集合，故不需 Json*Reference）
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "schedule_id")
     private Schedule schedule;
 
-    // 關聯：清運站
+    // 關聯：清運站（雙向的一方 → 這裡是「回指」）
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "station_id")
+    @JsonBackReference("station-apps") // ← 防止 Jackson/Springdoc 遞迴
     private Station station;
 
     @Column(name = "drop_point_code")
