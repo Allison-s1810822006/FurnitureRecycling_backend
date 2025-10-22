@@ -23,6 +23,8 @@ public class ApplicationService {
     private final StationRepository stationRepository;
     private final ScheduleRepository scheduleRepository;
 
+    // 使用 Application#isLocked() 檢查是否鎖定（已受理）
+
     /** 建立新的清運申請 → 回傳 DTO */
     @Transactional
     public ApplicationResponseDto createApplication(ApplicationRequestDto dto) {
@@ -81,6 +83,9 @@ public class ApplicationService {
         Application app = applicationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Application not found"));
 
+        // 在進入編輯流程前，統一由實體驗證是否允許編輯（若已受理會拋例外）
+        app.ensureEditable();
+
         if (dto.getStationId() != null) {
             Station station = stationRepository.findById(dto.getStationId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid stationId"));
@@ -115,7 +120,11 @@ public class ApplicationService {
     /** 刪除 → 回傳是否成功 */
     @Transactional
     public boolean delete(UUID id) {
-        if (applicationRepository.existsById(id)) {
+        var opt = applicationRepository.findById(id);
+        if (opt.isPresent()) {
+            Application app = opt.get();
+            // 刪除也統一使用實體的檢查（若已受理會拋例外）
+            app.ensureEditable();
             applicationRepository.deleteById(id);
             return true;
         }
@@ -139,6 +148,8 @@ public class ApplicationService {
         dto.setTotalVolumeM3(app.getTotalVolumeM3());
         dto.setSuggestedVehicle(app.getSuggestedVehicle());
         dto.setStatus(app.getStatus());
+        // 是否可進入編輯畫面（若已受理則不可）
+        dto.setEditable(!app.isLocked());
         dto.setCreatedAt(app.getCreatedAt());
         dto.setUpdatedAt(app.getUpdatedAt());
         return dto;

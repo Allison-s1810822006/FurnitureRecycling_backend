@@ -20,6 +20,8 @@ public class ApplicationResponseDto {
     private BigDecimal totalVolumeM3;
     private String suggestedVehicle;
     private ApplicationStatus status;
+    // 表示前端是否可以進入編輯畫面（true = 可編輯，false = 已受理/鎖定）
+    private boolean editable;
     private Instant createdAt;
     private Instant updatedAt;
 }
