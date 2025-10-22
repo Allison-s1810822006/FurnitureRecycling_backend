@@ -1,5 +1,10 @@
 package edu.fcu.furniturerecyclingbackend.controller;
 
+/**
+ * ApplicationController 負責處理家具回收申請的 REST API 請求
+ * 包含新增、查詢、更新、刪除申請等功能
+ */
+
 import edu.fcu.furniturerecyclingbackend.dto.ApplicationRequestDto;
 import edu.fcu.furniturerecyclingbackend.dto.ApplicationResponseDto;
 import edu.fcu.furniturerecyclingbackend.model.Application;

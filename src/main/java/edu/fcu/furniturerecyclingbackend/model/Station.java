@@ -5,10 +5,13 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import java.sql.Time;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -43,9 +46,14 @@ public class Station {
     @Column(nullable = false)
     private Short amount;
 
-    // 🔹 與 Application 的雙向關聯
-    //    - Station 是「父」（正向）
-    //    - Application 是「子」（回指）
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false, columnDefinition = "timestamptz")
+    private OffsetDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", columnDefinition = "timestamptz")
+    private OffsetDateTime updatedAt;
+
     @OneToMany(mappedBy = "station", cascade = CascadeType.ALL, orphanRemoval = false)
     @JsonManagedReference("station-apps") // 成對對應 Application 的 @JsonBackReference("station-apps")
     private List<Application> applications = new ArrayList<>();
