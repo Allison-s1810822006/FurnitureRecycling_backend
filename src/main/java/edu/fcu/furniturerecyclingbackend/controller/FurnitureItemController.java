@@ -46,7 +46,7 @@ public class FurnitureItemController {
             item.setHeightM(updated.getHeightM());
             item.setType(updated.getType());
             item.setQuantity(updated.getQuantity());
-            item.setCategory(updated.getCategory());
+//            item.setCategory(updated.getCategory());
             item.setVariantCode(updated.getVariantCode());
             item.setPhotoUrl(updated.getPhotoUrl());
             return furnitureItemRepository.save(item);

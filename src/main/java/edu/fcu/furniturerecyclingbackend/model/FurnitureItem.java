@@ -43,8 +43,8 @@ public class FurnitureItem {
     @Column(name = "quantity", nullable = false)
     private Integer quantity = 1;
 
-    @Column(name = "category")
-    private String category;
+//    @Column(name = "category")
+//    private String category;
 
     @Column(name = "variant_code")
     private String variantCode;
