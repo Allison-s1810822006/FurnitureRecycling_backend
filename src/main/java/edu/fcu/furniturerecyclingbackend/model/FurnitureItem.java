@@ -1,6 +1,7 @@
 package edu.fcu.furniturerecyclingbackend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import edu.fcu.furniturerecyclingbackend.config.StringListJsonConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -83,12 +84,11 @@ public class FurnitureItem {
     @Column(name = "item_count", nullable = false)
     private Integer itemCount = 0;
 
-    // 照片 URL（多張），儲存前端上傳到檔案服務後取得的照片網址
-    // 每筆家具細分選項的照片數量需與 itemCount 相符
-    @ElementCollection
-    @CollectionTable(name = "furniture_photo_urls", joinColumns = @JoinColumn(name = "item_id"))
-    @Column(name = "photo_url")
-    private java.util.List<String> photoUrls = new java.util.ArrayList<>(); // 該細分選項的照片
+    // 照片 URL（多張），直接存成 JSON 字串在 furniture 表的 photo_urls 欄位
+    // 例如：["url1", "url2", ...]
+    @Column(name = "photo_urls", columnDefinition = "TEXT")
+    @Convert(converter = StringListJsonConverter.class)
+    private java.util.List<String> photoUrls = new java.util.ArrayList<>();
 
     /** 自動生成 UUID */
     @PrePersist

@@ -70,6 +70,13 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
+        <!-- Java 物件與 JSON 之間的序列化（物件轉 JSON）與反序列化（JSON 轉物件） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+
         <!-- 添加 Mail starter 依賴 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
