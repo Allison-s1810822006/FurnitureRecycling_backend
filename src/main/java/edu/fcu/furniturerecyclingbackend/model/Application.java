@@ -65,6 +65,13 @@ public class Application {
     private Instant updatedAt;
 
     /**
+     * 家具項目清單，與 FurnitureItem 一對多關聯
+     * 申請單可包含多個家具細分選項
+     */
+    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<FurnitureItem> furnitureItems = new java.util.ArrayList<>();
+
+    /**
      * 檢查此申請單是否被鎖定（已受理）。
      * 回傳 true 表示不能被修改或刪除。
      */
@@ -96,6 +103,13 @@ public class Application {
      * setStatus 不受鎖定影響（需要有人可以從 SUBMITTED -> APPROVED）。
      */
     public void setStatus(ApplicationStatus status) { this.status = status; }
+
+    public java.util.List<FurnitureItem> getFurnitureItems() {
+        return furnitureItems;
+    }
+    public void setFurnitureItems(java.util.List<FurnitureItem> furnitureItems) {
+        this.furnitureItems = furnitureItems;
+    }
 
     @PrePersist
     void onCreate() {

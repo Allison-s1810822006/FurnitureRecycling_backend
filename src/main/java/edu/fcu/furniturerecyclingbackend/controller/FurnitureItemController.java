@@ -3,9 +3,12 @@ package edu.fcu.furniturerecyclingbackend.controller;
 import edu.fcu.furniturerecyclingbackend.model.FurnitureItem;
 import edu.fcu.furniturerecyclingbackend.repository.FurnitureItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,16 +31,26 @@ public class FurnitureItemController {
         return furnitureItemRepository.findById(id);
     }
 
-    // 新增家具資料
+    // 新增家具資料（包含細分選項、數量、照片網址）
+    // 前端直接傳 mainType、subType、itemCount、photoUrls
     @PostMapping
-    public FurnitureItem createFurnitureItem(@RequestBody FurnitureItem item) {
+    public ResponseEntity<?> createFurnitureItem(@RequestBody FurnitureItem item) {
         item.setItemId(UUID.randomUUID());
-        return furnitureItemRepository.save(item);
+        // 根據 subType 自動推導 mainType
+        if (item.getSubType() != null) {
+            item.setMainType(item.getSubType().getMainType());
+        }
+        // 驗證照片數量是否與 itemCount 相符
+        if (item.getPhotoUrls() == null || item.getPhotoUrls().size() != item.getItemCount()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "照片數量需與家具數量相符"));
+        }
+        FurnitureItem saved = furnitureItemRepository.save(item);
+        return ResponseEntity.ok(saved);
     }
 
     // 更新家具資料
     @PutMapping("/{id}")
-    public FurnitureItem updateFurnitureItem(@PathVariable("id") UUID id,
+    public ResponseEntity<?> updateFurnitureItem(@PathVariable("id") UUID id,
                                              @RequestBody FurnitureItem updated) {
         return furnitureItemRepository.findById(id).map(item -> {
             item.setItemName(updated.getItemName());
@@ -45,17 +58,36 @@ public class FurnitureItemController {
             item.setWidthM(updated.getWidthM());
             item.setHeightM(updated.getHeightM());
             item.setType(updated.getType());
-            item.setQuantity(updated.getQuantity());
-//            item.setCategory(updated.getCategory());
-            item.setVariantCode(updated.getVariantCode());
-            item.setPhotoUrl(updated.getPhotoUrl());
-            return furnitureItemRepository.save(item);
-        }).orElseThrow(() -> new RuntimeException("Furniture item not found"));
+            item.setMainType(updated.getMainType());
+            item.setSubType(updated.getSubType());
+            item.setItemCount(updated.getItemCount());
+            item.setPhotoUrls(updated.getPhotoUrls());
+            return ResponseEntity.ok(furnitureItemRepository.save(item));
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     // 刪除家具資料
     @DeleteMapping("/{id}")
-    public void deleteFurnitureItem(@PathVariable("id") UUID id) {
+    public ResponseEntity<?> deleteFurnitureItem(@PathVariable("id") UUID id) {
+        if (!furnitureItemRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
         furnitureItemRepository.deleteById(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // 取得所有家具主類型及細分選項
+    @GetMapping("/types")
+    public ResponseEntity<List<Map<String, String>>> getFurnitureTypes() {
+        List<Map<String, String>> types = new ArrayList<>();
+        for (FurnitureItem.SubType subType : FurnitureItem.SubType.values()) {
+            types.add(Map.of(
+                "mainType", subType.getMainType().name(),
+                "mainTypeLabel", subType.getMainType().getDisplayName(),
+                "subType", subType.name(),
+                "subTypeLabel", subType.getDisplayName()
+            ));
+        }
+        return ResponseEntity.ok(types);
     }
 }

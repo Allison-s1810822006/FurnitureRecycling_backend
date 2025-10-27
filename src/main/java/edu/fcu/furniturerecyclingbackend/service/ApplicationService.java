@@ -57,6 +57,40 @@ public class ApplicationService {
         app.setSuggestedVehicle(Optional.ofNullable(dto.getSuggestedVehicle()).orElse("FLATBED"));
         app.setStatus(Optional.ofNullable(dto.getStatus()).orElse(ApplicationStatus.SUBMITTED));
 
+        // 驗證 items 家具申請項目
+        if (dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new IllegalArgumentException("申請至少需有一個已添加項目");
+        }
+        // 建立家具項目並驗證
+        for (ApplicationRequestDto.FurnitureItemDto itemDto : dto.getItems()) {
+            // 驗證數量範圍
+            if (itemDto.getQuantity() == null || itemDto.getQuantity() < 1 || itemDto.getQuantity() > 5) {
+                throw new IllegalArgumentException("家具數量必須介於 1 到 5 之間");
+            }
+            // 驗證照片數量
+            if (itemDto.getPhotoUrls() == null || itemDto.getPhotoUrls().size() != itemDto.getQuantity()) {
+                throw new IllegalArgumentException(
+                    String.format("%s-%s 照片數量 (%d) 必須等於選擇的數量 (%d)",
+                        itemDto.getCategory(), itemDto.getSubType(),
+                        itemDto.getPhotoUrls() == null ? 0 : itemDto.getPhotoUrls().size(), itemDto.getQuantity()));
+            }
+            // 驗證照片格式與大小（假設 URL 末尾為檔名，實際大小需前端或檔案服務驗證）
+            for (String url : itemDto.getPhotoUrls()) {
+                if (!url.toLowerCase().endsWith(".jpg")) {
+                    throw new IllegalArgumentException("照片格式必須為 jpg，錯誤檔案: " + url);
+                }
+                // 可加強：若有檔案服務 API，可查詢檔案大小，這裡僅驗證格式
+            }
+            // 建立 FurnitureItem 實體
+            FurnitureItem furnitureItem = new FurnitureItem();
+            furnitureItem.setApplication(app); // 關聯申請
+            furnitureItem.setMainType(FurnitureItem.MainType.valueOf(itemDto.getCategory()));
+            furnitureItem.setSubType(FurnitureItem.SubType.valueOf(itemDto.getSubType()));
+            furnitureItem.setItemCount(itemDto.getQuantity());
+            furnitureItem.setPhotoUrls(itemDto.getPhotoUrls());
+            app.getFurnitureItems().add(furnitureItem);
+        }
+
         // 時間交給 @PrePersist/@PreUpdate
         Application saved = applicationRepository.save(app);
         return toDto(saved);
@@ -155,4 +189,3 @@ public class ApplicationService {
         return dto;
     }
 }
-
