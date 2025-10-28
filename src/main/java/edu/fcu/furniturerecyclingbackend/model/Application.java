@@ -33,14 +33,10 @@ public class Application {
     @JoinColumn(name = "schedule_id")
     private Schedule schedule;
 
-    // 關聯：清運站（雙向的一方 → 這裡是「回指」）
+    // 關聯：清運站（外鍵，station_id 對應 DP001~DP005）
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "station_id")
-    @JsonBackReference("station-apps") // ← 防止 Jackson/Springdoc 遞迴
+    @JoinColumn(name = "station_id", referencedColumnName = "station_id", nullable = false)
     private Station station;
-
-    @Column(name = "drop_point_code")
-    private String dropPointCode;
 
     @Column(name = "requested_date", nullable = false)
     private LocalDate requestedDate;
@@ -92,8 +88,6 @@ public class Application {
     // --------- Plain setters (不在 setter 內做鎖定判斷) ---------
     public void setUserId(UUID userId) { this.userId = userId; }
     public void setSchedule(Schedule schedule) { this.schedule = schedule; }
-    public void setStation(Station station) { this.station = station; }
-    public void setDropPointCode(String dropPointCode) { this.dropPointCode = dropPointCode; }
     public void setRequestedDate(LocalDate requestedDate) { this.requestedDate = requestedDate; }
     public void setSuggestedVehicle(String suggestedVehicle) { this.suggestedVehicle = suggestedVehicle; }
     public void setTotalItems(Integer totalItems) { this.totalItems = totalItems; }

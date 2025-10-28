@@ -30,11 +30,6 @@ public class ApplicationService {
     /** 建立新的清運申請 → 回傳 DTO */
     @Transactional
     public ApplicationResponseDto createApplication(ApplicationRequestDto dto) {
-        // 驗證 DropPoint 代碼（用 enum）
-        if (!DropPoint.isValid(dto.getDropPointCode())) {
-            throw new IllegalArgumentException("Invalid dropPointCode");
-        }
-
         // 驗證站點
         Station station = stationRepository.findById(dto.getStationId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid stationId"));
@@ -52,7 +47,6 @@ public class ApplicationService {
         app.setUserId(dto.getUserId());
         app.setStation(station);                  // 關聯實體
         app.setSchedule(schedule);                // 關聯實體
-        app.setDropPointCode(dto.getDropPointCode());
         app.setRequestedDate(dto.getRequestedDate());
         app.setTotalItems(Optional.ofNullable(dto.getTotalItems()).orElse(0));
         app.setTotalVolumeM3(Optional.ofNullable(dto.getTotalVolumeM3()).orElse(BigDecimal.ZERO));
