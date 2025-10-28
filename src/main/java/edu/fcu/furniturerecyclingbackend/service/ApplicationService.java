@@ -6,6 +6,7 @@ import edu.fcu.furniturerecyclingbackend.model.*;
 import edu.fcu.furniturerecyclingbackend.repository.ApplicationRepository;
 import edu.fcu.furniturerecyclingbackend.repository.ScheduleRepository;
 import edu.fcu.furniturerecyclingbackend.repository.StationRepository;
+import edu.fcu.furniturerecyclingbackend.repository.FurnitureItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final StationRepository stationRepository;
     private final ScheduleRepository scheduleRepository;
+    private final FurnitureItemRepository furnitureItemRepository;
 
     // 使用 Application#isLocked() 檢查是否鎖定（已受理）
 
@@ -61,25 +63,32 @@ public class ApplicationService {
         if (dto.getItems() == null || dto.getItems().isEmpty()) {
             throw new IllegalArgumentException("申請至少需有一個已添加項目");
         }
+        // 驗證：同一申請只能有一個家具主類型及細分選項
+        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getCategory).distinct().count() > 1) {
+            throw new IllegalArgumentException("每次申請只能選擇一個家具主類型");
+        }
+        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getSubType).distinct().count() > 1) {
+            throw new IllegalArgumentException("每次申請只能選擇一個細分選項");
+        }
         // 建立家具項目並驗證
         for (ApplicationRequestDto.FurnitureItemDto itemDto : dto.getItems()) {
-            // 驗證數量範圍
+            // 驗證數量範圍（不可小於1，不可大於5）
             if (itemDto.getQuantity() == null || itemDto.getQuantity() < 1 || itemDto.getQuantity() > 5) {
                 throw new IllegalArgumentException("家具數量必須介於 1 到 5 之間");
             }
-            // 驗證照片數量
+            // 驗證照片數量需與家具數量相符
             if (itemDto.getPhotoUrls() == null || itemDto.getPhotoUrls().size() != itemDto.getQuantity()) {
                 throw new IllegalArgumentException(
                     String.format("%s-%s 照片數量 (%d) 必須等於選擇的數量 (%d)",
                         itemDto.getCategory(), itemDto.getSubType(),
                         itemDto.getPhotoUrls() == null ? 0 : itemDto.getPhotoUrls().size(), itemDto.getQuantity()));
             }
-            // 驗證照片格式與大小（假設 URL 末尾為檔名，實際大小需前端或檔案服務驗證）
+            // 驗證照片格式（jpg/png）與大小（由前端或檔案服務驗證）
             for (String url : itemDto.getPhotoUrls()) {
-                if (!url.toLowerCase().endsWith(".jpg")) {
-                    throw new IllegalArgumentException("照片格式必須為 jpg，錯誤檔案: " + url);
+                if (!url.toLowerCase().matches(".+\\.(jpg|jpeg|png)$")) {
+                    throw new IllegalArgumentException("照片格式必須為 jpg 或 png，錯誤檔案: " + url);
                 }
-                // 可加強：若有檔案服務 API，可查詢檔案大小，這裡僅驗證格式
+                // 檔案大小驗證由前端或檔案服務負責
             }
             // 建立 FurnitureItem 實體
             FurnitureItem furnitureItem = new FurnitureItem();
@@ -89,6 +98,13 @@ public class ApplicationService {
             furnitureItem.setItemCount(itemDto.getQuantity());
             furnitureItem.setPhotoUrls(itemDto.getPhotoUrls());
             app.getFurnitureItems().add(furnitureItem);
+        }
+
+        // 驗證該站點該日期剩餘可收取數量（最多5件）
+        int alreadyCount = furnitureItemRepository.countByApplication_Station_StationIdAndApplication_RequestedDate(dto.getStationId(), dto.getRequestedDate());
+        int newCount = dto.getItems().stream().mapToInt(ApplicationRequestDto.FurnitureItemDto::getQuantity).sum();
+        if (alreadyCount + newCount > 5) {
+            throw new IllegalArgumentException(String.format("該站點 %s 日期 %s 最多只能收取5件家具，剩餘可收取數量：%d", dto.getStationId(), dto.getRequestedDate(), 5 - alreadyCount));
         }
 
         // 時間交給 @PrePersist/@PreUpdate

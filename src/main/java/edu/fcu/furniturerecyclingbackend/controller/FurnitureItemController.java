@@ -96,4 +96,15 @@ public class FurnitureItemController {
         }
         return ResponseEntity.ok(types);
     }
+
+    /**
+     * 查詢某站點某日期剩餘可收取家具數量
+     */
+    @GetMapping("/remaining")
+    public ResponseEntity<Map<String, Object>> getRemainingFurnitureCount(@RequestParam UUID stationId, @RequestParam String date) {
+        java.time.LocalDate localDate = java.time.LocalDate.parse(date);
+        int alreadyCount = furnitureItemRepository.countByApplication_Station_StationIdAndApplication_RequestedDate(stationId, localDate);
+        int remaining = Math.max(0, 5 - alreadyCount);
+        return ResponseEntity.ok(Map.of("stationId", stationId, "date", date, "remainingCount", remaining));
+    }
 }
