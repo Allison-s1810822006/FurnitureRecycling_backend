@@ -20,12 +20,10 @@ public class ApplicationRequestDto {
     private UUID userId;               // 必填：申請人
 
     @NotNull(message = "stationId 為必填欄位")
-    private UUID stationId;            // 必填：站點
+    private String stationId;            // 必填：站點（DP001~DP005）
 
     @NotNull(message = "scheduleId 為必填欄位")
     private UUID scheduleId;           // 必填：清運時間（對應班表）
-
-    private String dropPointCode;      // 可選：五個定點代碼（若使用下拉選單提供）
 
     @NotNull(message = "requestedDate 為必填欄位")
     private LocalDate requestedDate;   // 必填：申請清運日期

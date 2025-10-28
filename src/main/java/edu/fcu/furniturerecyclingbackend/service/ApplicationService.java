@@ -30,9 +30,10 @@ public class ApplicationService {
     /** 建立新的清運申請 → 回傳 DTO */
     @Transactional
     public ApplicationResponseDto createApplication(ApplicationRequestDto dto) {
-        // 驗證站點
-        Station station = stationRepository.findById(dto.getStationId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid stationId"));
+        // 驗證站點（僅驗證存在，不再使用 station 實體）
+        if (!stationRepository.existsById(dto.getStationId())) {
+            throw new IllegalArgumentException("Invalid stationId");
+        }
 
         // 驗證時段
         Schedule schedule = scheduleRepository.findById(dto.getScheduleId())
@@ -45,8 +46,7 @@ public class ApplicationService {
 
         Application app = new Application();
         app.setUserId(dto.getUserId());
-        app.setStation(station);                  // 關聯實體
-        app.setSchedule(schedule);                // 關聯實體
+        app.setSchedule(schedule);
         app.setRequestedDate(dto.getRequestedDate());
         app.setTotalItems(Optional.ofNullable(dto.getTotalItems()).orElse(0));
         app.setTotalVolumeM3(Optional.ofNullable(dto.getTotalVolumeM3()).orElse(BigDecimal.ZERO));
@@ -130,28 +130,12 @@ public class ApplicationService {
         // 在進入編輯流程前，統一由實體驗證是否允許編輯（若已受理會拋例外）
         app.ensureEditable();
 
-        if (dto.getStationId() != null) {
-            Station station = stationRepository.findById(dto.getStationId())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid stationId"));
-            app.setStation(station);
-        }
         if (dto.getScheduleId() != null) {
             Schedule schedule = scheduleRepository.findById(dto.getScheduleId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid scheduleId"));
             app.setSchedule(schedule);
-            // 你若希望更新時也檢查日期一致，可打開以下檢查：
-            // if (dto.getRequestedDate() != null && !schedule.getScheduleDate().equals(dto.getRequestedDate())) {
-            //     throw new IllegalArgumentException("requestedDate must equal schedule_date");
-            // }
         }
-
         if (dto.getRequestedDate() != null) app.setRequestedDate(dto.getRequestedDate());
-        if (dto.getDropPointCode() != null) {
-            if (!DropPoint.isValid(dto.getDropPointCode())) {
-                throw new IllegalArgumentException("Invalid dropPointCode");
-            }
-            app.setDropPointCode(dto.getDropPointCode());
-        }
         if (dto.getTotalItems() != null) app.setTotalItems(dto.getTotalItems());
         if (dto.getTotalVolumeM3() != null) app.setTotalVolumeM3(dto.getTotalVolumeM3());
         if (dto.getSuggestedVehicle() != null) app.setSuggestedVehicle(dto.getSuggestedVehicle());
@@ -182,17 +166,13 @@ public class ApplicationService {
         ApplicationResponseDto dto = new ApplicationResponseDto();
         dto.setApplicationId(app.getApplicationId());
         dto.setUserId(app.getUserId());
-        dto.setStationId(app.getStation() != null ? app.getStation().getStationId() : null);
-
+        dto.setStationId(app.getStation() != null ? app.getStation().getStationId() : null); // ApplicationResponseDto.stationId 型別已改為 String
         dto.setScheduleId(app.getSchedule() != null ? app.getSchedule().getScheduleId() : null);
-
-        dto.setDropPointCode(app.getDropPointCode());
         dto.setRequestedDate(app.getRequestedDate());
         dto.setTotalItems(app.getTotalItems());
         dto.setTotalVolumeM3(app.getTotalVolumeM3());
         dto.setSuggestedVehicle(app.getSuggestedVehicle());
         dto.setStatus(app.getStatus());
-        // 是否可進入編輯畫面（若已受理則不可）
         dto.setEditable(!app.isLocked());
         dto.setCreatedAt(app.getCreatedAt());
         dto.setUpdatedAt(app.getUpdatedAt());

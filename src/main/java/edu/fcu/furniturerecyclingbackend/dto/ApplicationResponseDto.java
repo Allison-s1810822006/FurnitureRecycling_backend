@@ -12,9 +12,8 @@ import java.util.UUID;
 public class ApplicationResponseDto {
     private UUID applicationId;
     private UUID userId;
-    private UUID stationId;     // 從關聯取出 id
+    private String stationId;     // 從關聯取出 id，型別改為 String（DP001~DP005）
     private UUID scheduleId;    // 從關聯取出 id
-    private String dropPointCode;
     private LocalDate requestedDate;
     private Integer totalItems;
     private BigDecimal totalVolumeM3;

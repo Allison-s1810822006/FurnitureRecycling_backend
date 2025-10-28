@@ -8,5 +8,5 @@ public interface FurnitureItemRepository extends JpaRepository<FurnitureItem, UU
     /**
      * 查詢某站點某日期已申請的家具總數
      */
-    int countByApplication_Station_StationIdAndApplication_RequestedDate(UUID stationId, java.time.LocalDate requestedDate);
+    int countByApplication_Station_StationIdAndApplication_RequestedDate(String stationId, java.time.LocalDate requestedDate);
 }
