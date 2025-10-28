@@ -32,7 +32,7 @@ public class FurnitureItemController {
     }
 
     // 新增家具資料（包含細分選項、數量、照片網址）
-    // 前端直接傳 mainType、subType、itemCount、photoUrls
+    // 前端需傳 mainType、subType、itemCount、photoUrls
     @PostMapping
     public ResponseEntity<?> createFurnitureItem(@RequestBody FurnitureItem item) {
         item.setItemId(UUID.randomUUID());
@@ -43,6 +43,12 @@ public class FurnitureItemController {
         // 驗證照片數量是否與 itemCount 相符
         if (item.getPhotoUrls() == null || item.getPhotoUrls().size() != item.getItemCount()) {
             return ResponseEntity.badRequest().body(Map.of("error", "照片數量需與家具數量相符"));
+        }
+        // 驗證每張照片格式必須為 jpg 或 png
+        for (String url : item.getPhotoUrls()) {
+            if (!url.matches("(?i).+\\.(jpg|jpeg|png)$")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "照片格式僅支援 jpg 或 png"));
+            }
         }
         FurnitureItem saved = furnitureItemRepository.save(item);
         return ResponseEntity.ok(saved);
