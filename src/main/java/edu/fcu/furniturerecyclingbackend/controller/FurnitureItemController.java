@@ -31,8 +31,7 @@ public class FurnitureItemController {
         return furnitureItemRepository.findById(id);
     }
 
-    // 新增家具資料（包含細分選項、數量、照片網址）
-    // 前端需傳 mainType、subType、itemCount、photoUrls
+    // 新增家具資料（只需 mainType、subType、itemCount，其餘照片邏輯移除）
     @PostMapping
     public ResponseEntity<?> createFurnitureItem(@RequestBody FurnitureItem item) {
         item.setItemId(UUID.randomUUID());
@@ -40,21 +39,12 @@ public class FurnitureItemController {
         if (item.getSubType() != null) {
             item.setMainType(item.getSubType().getMainType());
         }
-        // 驗證照片數量是否與 itemCount 相符
-        if (item.getPhotoUrls() == null || item.getPhotoUrls().size() != item.getItemCount()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "照片數量需與家具數量相符"));
-        }
-        // 驗證每張照片格式必須為 jpg 或 png
-        for (String url : item.getPhotoUrls()) {
-            if (!url.matches("(?i).+\\.(jpg|jpeg|png)$")) {
-                return ResponseEntity.badRequest().body(Map.of("error", "照片格式僅支援 jpg 或 png"));
-            }
-        }
+        // 不再驗證照片數量與格式，因為家具表不再存照片
         FurnitureItem saved = furnitureItemRepository.save(item);
         return ResponseEntity.ok(saved);
     }
 
-    // 更新家具資料
+    // 更新家具資料（移除照片相關欄位）
     @PutMapping("/{id}")
     public ResponseEntity<?> updateFurnitureItem(@PathVariable("id") UUID id,
                                              @RequestBody FurnitureItem updated) {
@@ -67,7 +57,7 @@ public class FurnitureItemController {
             item.setMainType(updated.getMainType());
             item.setSubType(updated.getSubType());
             item.setItemCount(updated.getItemCount());
-            item.setPhotoUrls(updated.getPhotoUrls());
+            // 移除 setPhotoUrls
             return ResponseEntity.ok(furnitureItemRepository.save(item));
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -99,9 +89,11 @@ public class FurnitureItemController {
 
     /**
      * 查詢某站點某日期剩餘可收取家具數量
+     * @param stationId 站點主鍵（DP001~DP005，String 型別）
+     * @param date 日期（yyyy-MM-dd）
      */
     @GetMapping("/remaining")
-    public ResponseEntity<Map<String, Object>> getRemainingFurnitureCount(@RequestParam UUID stationId, @RequestParam String date) {
+    public ResponseEntity<Map<String, Object>> getRemainingFurnitureCount(@RequestParam String stationId, @RequestParam String date) {
         java.time.LocalDate localDate = java.time.LocalDate.parse(date);
         int alreadyCount = furnitureItemRepository.countByApplication_Station_StationIdAndApplication_RequestedDate(stationId, localDate);
         int remaining = Math.max(0, 5 - alreadyCount);

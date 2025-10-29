@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class StationService {
@@ -19,7 +18,7 @@ public class StationService {
     }
 
     // 根據 stationId 查找回收站
-    public Optional<Station> getStationById(UUID stationId) {
+    public Optional<Station> getStationById(String stationId) {
         return stationRepository.findById(stationId);
     }
 
@@ -29,7 +28,7 @@ public class StationService {
     }
 
     // 更新回收站資料
-    public Station updateStation(UUID stationId, Station updatedStation) {
+    public Station updateStation(String stationId, Station updatedStation) {
         if (stationRepository.existsById(stationId)) {
             updatedStation.setStationId(stationId);
             return stationRepository.save(updatedStation);
@@ -38,8 +37,7 @@ public class StationService {
     }
 
     // 刪除回收站
-    public void deleteStation(UUID stationId) {
+    public void deleteStation(String stationId) {
         stationRepository.deleteById(stationId);
     }
 }
-

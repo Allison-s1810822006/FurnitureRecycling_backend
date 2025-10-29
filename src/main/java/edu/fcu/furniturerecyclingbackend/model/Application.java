@@ -1,6 +1,5 @@
 package edu.fcu.furniturerecyclingbackend.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,16 +7,13 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "applications")
-@Getter
-//與原先 @setter 的差異
-//先前每個 setter 內有 isLocked() 判斷（會印錯誤訊息並 return），那是「欄位層級」的防護，允許程式進入編輯畫面但在嘗試改欄位時漸進式阻止。
-//現在改為「流程一進入就阻止」（更符合：只要狀態為已受理，整筆訂單無法進入編輯狀態），更早期阻止，使用者或前端也可以不用處理單欄位被拒的混亂行為。
-//若沒有拋例外，service 用這些「plain setters」改值
-//ApplicationService.update() 讀取實體，第一件事呼叫 app.ensureEditable()（若已受理，立即 throw IllegalArgumentException，API 回 400，不會進入任何 setter）。
 public class Application {
 
     @Id
@@ -67,6 +63,10 @@ public class Application {
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<FurnitureItem> furnitureItems = new java.util.ArrayList<>();
 
+    /** 家具細項清單（申請單關聯的所有家具細項） */
+    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ApplicationItem> applicationItems;
+
     /**
      * 檢查此申請單是否被鎖定（已受理）。
      * 回傳 true 表示不能被修改或刪除。
@@ -83,26 +83,6 @@ public class Application {
         if (isLocked()) {
             throw new IllegalArgumentException("錯誤：案件 (ID: " + this.applicationId + ") 已受理，無法進入編輯狀態。");
         }
-    }
-
-    // --------- Plain setters (不在 setter 內做鎖定判斷) ---------
-    public void setUserId(UUID userId) { this.userId = userId; }
-    public void setSchedule(Schedule schedule) { this.schedule = schedule; }
-    public void setRequestedDate(LocalDate requestedDate) { this.requestedDate = requestedDate; }
-    public void setSuggestedVehicle(String suggestedVehicle) { this.suggestedVehicle = suggestedVehicle; }
-    public void setTotalItems(Integer totalItems) { this.totalItems = totalItems; }
-    public void setTotalVolumeM3(BigDecimal totalVolumeM3) { this.totalVolumeM3 = totalVolumeM3; }
-
-    /**
-     * setStatus 不受鎖定影響（需要有人可以從 SUBMITTED -> APPROVED）。
-     */
-    public void setStatus(ApplicationStatus status) { this.status = status; }
-
-    public java.util.List<FurnitureItem> getFurnitureItems() {
-        return furnitureItems;
-    }
-    public void setFurnitureItems(java.util.List<FurnitureItem> furnitureItems) {
-        this.furnitureItems = furnitureItems;
     }
 
     @PrePersist

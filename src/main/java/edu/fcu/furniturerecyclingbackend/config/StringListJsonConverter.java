@@ -9,7 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * JPA AttributeConverter：將 List<String> 轉換為 JSON 字串存入資料庫，並從 JSON 字串還原為 List<String>
+ * StringListJsonConverter
+ * 將 List<String> 轉換為 JSON 字串存入資料庫，反之亦然
  */
 @Converter
 public class StringListJsonConverter implements AttributeConverter<List<String>, String> {
@@ -27,7 +28,6 @@ public class StringListJsonConverter implements AttributeConverter<List<String>,
     @Override
     public List<String> convertToEntityAttribute(String dbData) {
         try {
-            if (dbData == null || dbData.isEmpty()) return new ArrayList<>();
             return objectMapper.readValue(dbData, new TypeReference<List<String>>() {});
         } catch (Exception e) {
             return new ArrayList<>();

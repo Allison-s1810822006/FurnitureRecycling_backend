@@ -84,12 +84,6 @@ public class FurnitureItem {
     @Column(name = "item_count", nullable = false)
     private Integer itemCount = 0;
 
-    // 照片 URL（多張），直接存成 JSON 字串在 furniture 表的 photo_urls 欄位
-    // 例如：["url1", "url2", ...]
-    @Column(name = "photo_urls", columnDefinition = "TEXT")
-    @Convert(converter = StringListJsonConverter.class)
-    private java.util.List<String> photoUrls = new java.util.ArrayList<>();
-
     /** 自動生成 UUID */
     @PrePersist
     public void prePersist() {

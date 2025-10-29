@@ -6,7 +6,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.sql.Time;
 import java.util.Arrays;
 import java.util.List;
 
@@ -41,11 +40,7 @@ public class StationDataLoader {
         s.setStationId(id);
         s.setName(name);
         s.setAddress(address);
-        s.setServiceStart(Time.valueOf("09:00:00"));
-        s.setServiceEnd(Time.valueOf("18:00:00"));
-        s.setServiceWeekday(new Integer[]{1,2,3,4,5});
         s.setAmount((short)5);
         return s;
     }
 }
-

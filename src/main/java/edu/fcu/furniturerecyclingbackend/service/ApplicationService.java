@@ -64,34 +64,39 @@ public class ApplicationService {
         if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getSubType).distinct().count() > 1) {
             throw new IllegalArgumentException("每次申請只能選擇一個細分選項");
         }
-        // 建立家具項目並驗證
+        // 建立 ApplicationItem 實體並驗證
         for (ApplicationRequestDto.FurnitureItemDto itemDto : dto.getItems()) {
             // 驗證數量範圍（不可小於1，不可大於5）
             if (itemDto.getQuantity() == null || itemDto.getQuantity() < 1 || itemDto.getQuantity() > 5) {
                 throw new IllegalArgumentException("家具數量必須介於 1 到 5 之間");
             }
             // 驗證照片數量需與家具數量相符
-            if (itemDto.getPhotoUrls() == null || itemDto.getPhotoUrls().size() != itemDto.getQuantity()) {
+            if (itemDto.getPhotos() == null || itemDto.getPhotos().size() != itemDto.getQuantity()) {
                 throw new IllegalArgumentException(
                     String.format("%s-%s 照片數量 (%d) 必須等於選擇的數量 (%d)",
                         itemDto.getCategory(), itemDto.getSubType(),
-                        itemDto.getPhotoUrls() == null ? 0 : itemDto.getPhotoUrls().size(), itemDto.getQuantity()));
+                        itemDto.getPhotos() == null ? 0 : itemDto.getPhotos().size(), itemDto.getQuantity()));
             }
             // 驗證照片格式（jpg/png）與大小（由前端或檔案服務驗證）
-            for (String url : itemDto.getPhotoUrls()) {
+            for (String url : itemDto.getPhotos()) {
                 if (!url.toLowerCase().matches(".+\\.(jpg|jpeg|png)$")) {
                     throw new IllegalArgumentException("照片格式必須為 jpg 或 png，錯誤檔案: " + url);
                 }
                 // 檔案大小驗證由前端或檔案服務負責
             }
-            // 建立 FurnitureItem 實體
-            FurnitureItem furnitureItem = new FurnitureItem();
-            furnitureItem.setApplication(app); // 關聯申請
-            furnitureItem.setMainType(FurnitureItem.MainType.valueOf(itemDto.getCategory()));
-            furnitureItem.setSubType(FurnitureItem.SubType.valueOf(itemDto.getSubType()));
-            furnitureItem.setItemCount(itemDto.getQuantity());
-            furnitureItem.setPhotoUrls(itemDto.getPhotoUrls());
-            app.getFurnitureItems().add(furnitureItem);
+            // 建立 ApplicationItem 實體
+            ApplicationItem applicationItem = new ApplicationItem();
+            applicationItem.setApplication(app); // 關聯申請
+            applicationItem.setItemName(itemDto.getSubType());
+            applicationItem.setQuantity(itemDto.getQuantity());
+            applicationItem.setPhotos(itemDto.getPhotos());
+            // 關聯 FurnitureItem
+            FurnitureItem furnitureItem = furnitureItemRepository.findById(itemDto.getFurnitureItemId())
+                .orElse(null);
+            applicationItem.setFurnitureItem(furnitureItem);
+            // 加入申請單
+            if (app.getApplicationItems() == null) app.setApplicationItems(new java.util.ArrayList<>());
+            app.getApplicationItems().add(applicationItem);
         }
 
         // 驗證該站點該日期剩餘可收取數量（最多5件）

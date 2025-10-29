@@ -26,3 +26,4 @@ public enum DropPoint {
         return false;
     }
 }
+// 若 enum 未使用可刪除，或保留作前端下拉選單用途

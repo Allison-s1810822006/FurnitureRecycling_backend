@@ -61,5 +61,9 @@ public class ApplicationRequestDto {
         private Integer quantity;
         @NotNull(message = "photoUrls 為必填欄位")
         private List<String> photoUrls;
+        @NotNull(message = "furnitureItemId 為必填欄位")
+        private UUID furnitureItemId;
+
+        public List<String> getPhotos() { return photoUrls; }
     }
 }
