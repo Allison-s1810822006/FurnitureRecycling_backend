@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/stations")
@@ -23,7 +22,7 @@ public class StationController {
 
     // 根據 stationId 查找回收站
     @GetMapping("/{stationId}")
-    public ResponseEntity<Station> getStationById(@PathVariable UUID stationId) {
+    public ResponseEntity<Station> getStationById(@PathVariable String stationId) {
         Optional<Station> station = stationService.getStationById(stationId);
         return station.map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
@@ -38,16 +37,15 @@ public class StationController {
 
     // 更新回收站資料
     @PutMapping("/{stationId}")
-    public ResponseEntity<Station> updateStation(@PathVariable UUID stationId, @RequestBody Station updatedStation) {
+    public ResponseEntity<Station> updateStation(@PathVariable String stationId, @RequestBody Station updatedStation) {
         Station updated = stationService.updateStation(stationId, updatedStation);
         return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
 
     // 刪除回收站
     @DeleteMapping("/{stationId}")
-    public ResponseEntity<Void> deleteStation(@PathVariable UUID stationId) {
+    public ResponseEntity<Void> deleteStation(@PathVariable String stationId) {
         stationService.deleteStation(stationId);
         return ResponseEntity.noContent().build();  // 返回 204 No Content
     }
 }
-

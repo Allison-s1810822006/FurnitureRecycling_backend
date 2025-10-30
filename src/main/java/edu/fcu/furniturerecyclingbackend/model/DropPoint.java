@@ -2,6 +2,7 @@ package edu.fcu.furniturerecyclingbackend.model;
 
 //固定 5 個地點，不會改變
 //Application 裡面 dropPointCode 連到這個 DropPoint。
+// DropPoint enum 可保留作為前端下拉選單、驗證用途，但資料表只用 Station
 public enum DropPoint {
     DP_001("DP001", "一號定點"),
     DP_002("DP002", "二號定點"),
@@ -25,3 +26,4 @@ public enum DropPoint {
         return false;
     }
 }
+// 若 enum 未使用可刪除，或保留作前端下拉選單用途
