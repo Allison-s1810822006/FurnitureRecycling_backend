@@ -7,6 +7,8 @@ import edu.fcu.furniturerecyclingbackend.repository.ApplicationRepository;
 import edu.fcu.furniturerecyclingbackend.repository.ScheduleRepository;
 import edu.fcu.furniturerecyclingbackend.repository.StationRepository;
 import edu.fcu.furniturerecyclingbackend.repository.FurnitureItemRepository;
+import edu.fcu.furniturerecyclingbackend.repository.ApplicationItemRepository;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,7 @@ public class ApplicationService {
     private final StationRepository stationRepository;
     private final ScheduleRepository scheduleRepository;
     private final FurnitureItemRepository furnitureItemRepository;
+    private final ApplicationItemRepository applicationItemRepository;
 
     // 使用 Application#isLocked() 檢查是否鎖定（已受理）
 
@@ -58,10 +61,8 @@ public class ApplicationService {
             throw new IllegalArgumentException("申請至少需有一個已添加項目");
         }
         // 驗證：同一申請只能有一個家具主類型及細分選項
-        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getCategory).distinct().count() > 1) {
-            throw new IllegalArgumentException("每次申請只能選擇一個家具主類型");
-        }
-        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getSubType).distinct().count() > 1) {
+        // 已移除 getCategory 驗證，僅保留細分選項驗證
+        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getItemName).distinct().count() > 1) {
             throw new IllegalArgumentException("每次申請只能選擇一個細分選項");
         }
         // 建立 ApplicationItem 實體並驗證
@@ -73,8 +74,8 @@ public class ApplicationService {
             // 驗證照片數量需與家具數量相符
             if (itemDto.getPhotos() == null || itemDto.getPhotos().size() != itemDto.getQuantity()) {
                 throw new IllegalArgumentException(
-                    String.format("%s-%s 照片數量 (%d) 必須等於選擇的數量 (%d)",
-                        itemDto.getCategory(), itemDto.getSubType(),
+                    String.format("%s 照片數量 (%d) 必須等於選擇的數量 (%d)",
+                        itemDto.getItemName(),
                         itemDto.getPhotos() == null ? 0 : itemDto.getPhotos().size(), itemDto.getQuantity()));
             }
             // 驗證照片格式（jpg/png）與大小（由前端或檔案服務驗證）
@@ -87,20 +88,21 @@ public class ApplicationService {
             // 建立 ApplicationItem 實體
             ApplicationItem applicationItem = new ApplicationItem();
             applicationItem.setApplication(app); // 關聯申請
-            applicationItem.setItemName(itemDto.getSubType());
+            applicationItem.setItemName(itemDto.getItemName());
             applicationItem.setQuantity(itemDto.getQuantity());
             applicationItem.setPhotos(itemDto.getPhotos());
-            // 關聯 FurnitureItem
-            FurnitureItem furnitureItem = furnitureItemRepository.findById(itemDto.getFurnitureItemId())
-                .orElse(null);
-            applicationItem.setFurnitureItem(furnitureItem);
+            // 直接設置 furnitureItemId，確保型別為 Integer
+            if (itemDto.getFurnitureItemId() != null) {
+                applicationItem.setFurnitureItemId(Integer.valueOf(itemDto.getFurnitureItemId().toString()));
+            }
             // 加入申請單
             if (app.getApplicationItems() == null) app.setApplicationItems(new java.util.ArrayList<>());
             app.getApplicationItems().add(applicationItem);
         }
 
         // 驗證該站點該日期剩餘可收取數量（最多5件）
-        int alreadyCount = furnitureItemRepository.countByApplication_Station_StationIdAndApplication_RequestedDate(dto.getStationId(), dto.getRequestedDate());
+        Integer alreadyCount = applicationItemRepository.sumQuantityByStationIdAndRequestedDate(dto.getStationId(), dto.getRequestedDate());
+        if (alreadyCount == null) alreadyCount = 0;
         int newCount = dto.getItems().stream().mapToInt(ApplicationRequestDto.FurnitureItemDto::getQuantity).sum();
         if (alreadyCount + newCount > 5) {
             throw new IllegalArgumentException(String.format("該站點 %s 日期 %s 最多只能收取5件家具，剩餘可收取數量：%d", dto.getStationId(), dto.getRequestedDate(), 5 - alreadyCount));

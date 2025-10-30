@@ -46,24 +46,31 @@ public class ApplicationRequestDto {
 
     /**
      * 家具項目 DTO
-     * category: 主類型（SOFA、BED）
-     * subType: 細分選項（SOFA_SINGLE、SOFA_TRIPLE...）
+     * 對應 application_items 與 furniture 資料表
+     * furniture_item_id: 對應 furniture.item_id
+     * item_name: 名稱
+     * main_type: 大類
+     * sub_type: 子類
      * quantity: 數量
-     * photoUrls: 照片網址清單
+     * length_m, width_m, height_m: 尺寸
+     * variant_code: 版本/型號
+     * item_count: 計數欄位
+     * photos: 照片網址清單
      */
     @Data
     public static class FurnitureItemDto {
-        @NotNull(message = "category 為必填欄位")
-        private String category;
-        @NotNull(message = "subType 為必填欄位")
-        private String subType;
+        @NotNull(message = "furnitureItemId 為必填欄位")
+        private Integer furnitureItemId;
+        @NotNull(message = "itemName 為必填欄位")
+        private String itemName;
         @Min(value = 1, message = "quantity 必須大於 0")
         private Integer quantity;
-        @NotNull(message = "photoUrls 為必填欄位")
-        private List<String> photoUrls;
-        @NotNull(message = "furnitureItemId 為必填欄位")
-        private UUID furnitureItemId;
-
-        public List<String> getPhotos() { return photoUrls; }
+        @NotNull(message = "photos 為必填欄位")
+        private List<String> photos;
+        private Double lengthM;
+        private Double widthM;
+        private Double heightM;
+        @NotNull(message = "type 為必填欄位")
+        private String type;
     }
 }

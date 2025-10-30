@@ -1,6 +1,6 @@
 package edu.fcu.furniturerecyclingbackend.controller;
 
-import edu.fcu.furniturerecyclingbackend.model.App_Users;
+import edu.fcu.furniturerecyclingbackend.model.AppUsers;
 import edu.fcu.furniturerecyclingbackend.model.UpdateUserRequest;
 import edu.fcu.furniturerecyclingbackend.service.UpdateUserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,7 @@ public class UpdateUserController {
             return ResponseEntity.status(401).body("Missing email header");
         }
 
-        App_Users updatedUser = updateUserService.updateUser(email, updateRequest);
+        AppUsers updatedUser = updateUserService.updateUser(email, updateRequest);
         if (updatedUser == null) {
             return ResponseEntity.status(404).body("User not found");
         }

@@ -1,6 +1,6 @@
 package edu.fcu.furniturerecyclingbackend.service;
 
-import edu.fcu.furniturerecyclingbackend.model.App_Users;
+import edu.fcu.furniturerecyclingbackend.model.AppUsers;
 import edu.fcu.furniturerecyclingbackend.repository.AppUsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,10 +16,10 @@ public class DeleteUserService {
 
     public boolean deleteUserByEmail(String email) {
         // 根據 email 查找用戶
-        Optional<App_Users> userOptional = userRepository.findByEmail(email);
+        Optional<AppUsers> userOptional = userRepository.findByEmail(email);
 
         // 如果用戶不存在，返回 false
-        if (!userOptional.isPresent()) {
+        if (userOptional.isEmpty()) {
             return false;
         }
 
@@ -32,10 +32,10 @@ public class DeleteUserService {
 
     public boolean deleteUserById(UUID userId) {
         // 根據 userId 查找用戶
-        Optional<App_Users> userOptional = userRepository.findById(userId);
+        Optional<AppUsers> userOptional = userRepository.findById(userId);
 
         // 如果用戶不存在，返回 false
-        if (!userOptional.isPresent()) {
+        if (userOptional.isEmpty()) {
             return false;
         }
 
@@ -46,4 +46,3 @@ public class DeleteUserService {
         return true;
     }
 }
-

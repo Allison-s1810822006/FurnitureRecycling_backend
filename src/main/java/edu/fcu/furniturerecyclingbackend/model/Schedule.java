@@ -24,9 +24,6 @@ public class Schedule {
     @Column(name = "schedule_date", nullable = false)
     private LocalDate scheduleDate; // 排程日期
 
-    @Column(name = "sequence_no", nullable = false)
-    private Integer sequenceNo; // 行程順序編號
-
     @Column(name = "eta", nullable = false)
     private Instant eta; // 預估抵達時間 (timestamptz)
 

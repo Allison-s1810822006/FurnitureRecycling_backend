@@ -56,13 +56,6 @@ public class Application {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    /**
-     * 家具項目清單，與 FurnitureItem 一對多關聯
-     * 申請單可包含多個家具細分選項
-     */
-    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
-    private java.util.List<FurnitureItem> furnitureItems = new java.util.ArrayList<>();
-
     /** 家具細項清單（申請單關聯的所有家具細項） */
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ApplicationItem> applicationItems;

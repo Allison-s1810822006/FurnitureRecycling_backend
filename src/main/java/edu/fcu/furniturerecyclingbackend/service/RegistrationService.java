@@ -1,6 +1,6 @@
 package edu.fcu.furniturerecyclingbackend.service;
 
-import edu.fcu.furniturerecyclingbackend.model.App_Users;
+import edu.fcu.furniturerecyclingbackend.model.AppUsers;
 import edu.fcu.furniturerecyclingbackend.repository.AppUsersRepository;
 import edu.fcu.furniturerecyclingbackend.dto.RegistrationDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +31,7 @@ public class RegistrationService {
         String encodedPassword = org.mindrot.jbcrypt.BCrypt.hashpw(registrationDTO.getPassword(), salt);
 
         // 創建新用戶實體
-        App_Users newUser = new App_Users(
+        AppUsers newUser = new AppUsers(
                 registrationDTO.getFullName(),
                 registrationDTO.getEmail(),
                 encodedPassword

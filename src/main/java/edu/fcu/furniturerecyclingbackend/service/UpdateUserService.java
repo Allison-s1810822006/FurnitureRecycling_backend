@@ -1,6 +1,6 @@
 package edu.fcu.furniturerecyclingbackend.service;
 
-import edu.fcu.furniturerecyclingbackend.model.App_Users;
+import edu.fcu.furniturerecyclingbackend.model.AppUsers;
 import edu.fcu.furniturerecyclingbackend.model.UpdateUserRequest;
 import edu.fcu.furniturerecyclingbackend.repository.AppUsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,17 +14,17 @@ public class UpdateUserService {
     @Autowired
     private AppUsersRepository userRepository;
 
-    public App_Users updateUser(String email, UpdateUserRequest updateRequest) {
+    public AppUsers updateUser(String email, UpdateUserRequest updateRequest) {
         // 通过 email 查找用户
-        Optional<App_Users> optionalUser = userRepository.findByEmail(email);
+        Optional<AppUsers> optionalUser = userRepository.findByEmail(email);
 
         // 如果用户不存在，返回 null
-        if (!optionalUser.isPresent()) {
+        if (optionalUser.isEmpty()) {
             return null;
         }
 
-        // 获取实际的 App_Users 对象
-        App_Users user = optionalUser.get();
+        // 获取实际的 AppUsers 对象
+        AppUsers user = optionalUser.get();
 
         // 更新用户信息
         user.setFullName(updateRequest.getFullName());
@@ -35,5 +35,3 @@ public class UpdateUserService {
         return userRepository.save(user);
     }
 }
-
-

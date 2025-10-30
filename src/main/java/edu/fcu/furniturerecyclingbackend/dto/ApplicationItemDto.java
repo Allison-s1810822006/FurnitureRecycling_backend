@@ -17,7 +17,7 @@ public class ApplicationItemDto {
     /** 對應申請單 ID */
     private UUID applicationId;
     /** 家具類型 ID */
-    private UUID furnitureItemId;
+    private Integer furnitureItemId;
     /** 家具細分名稱 */
     private String itemName;
     /** 家具數量 */
