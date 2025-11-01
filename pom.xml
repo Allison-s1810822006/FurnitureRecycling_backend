@@ -34,18 +34,20 @@
 
     <dependencies>
 
+        <!-- Spring Boot Web Starter: 提供 RESTful API 與 Web 應用的基礎功能 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- PostgreSQL Driver -->
+        <!-- PostgresSQL Driver: 連接 PostgresSQL 資料庫用 -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Lombok: 用於簡化 Java 程式碼，提供自動產生 getter/setter 等註解 -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -53,37 +55,27 @@
             <version>1.18.30</version>
         </dependency>
 
+        <!-- Spring Boot Test Starter: 提供單元測試與整合測試相關功能 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
 
+        <!-- SpringDoc OpenAPI: 產生 API 文件 (Swagger UI) 用 -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.8.9</version>
         </dependency>
 
+        <!-- Spring Boot Data JPA: 提供 ORM 與資料庫存取功能 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-
-        <!-- 添加 Mail starter 依賴 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-mail</artifactId>
-        </dependency>
-
-        <!-- 使用 jBCrypt 暫時取代 Spring Security 的密碼編碼器 -->
-        <dependency>
-            <groupId>org.mindrot</groupId>
-            <artifactId>jbcrypt</artifactId>
-            <version>0.4</version>
-        </dependency>
-
+        <!-- Nimbus JOSE + JWT: 處理 JWT 與加解密相關功能 (如 LINE 登入驗證) -->
         <dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>
