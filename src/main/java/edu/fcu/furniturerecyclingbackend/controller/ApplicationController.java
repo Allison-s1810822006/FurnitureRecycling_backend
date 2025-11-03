@@ -7,8 +7,8 @@ package edu.fcu.furniturerecyclingbackend.controller;
 
 import edu.fcu.furniturerecyclingbackend.dto.ApplicationRequestDto;
 import edu.fcu.furniturerecyclingbackend.dto.ApplicationResponseDto;
-import edu.fcu.furniturerecyclingbackend.model.Application;
 import edu.fcu.furniturerecyclingbackend.service.ApplicationService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +20,7 @@ import java.util.UUID;
 @RestController // 標註為 REST API Controller
 @RequestMapping("/api/applications") // 所有 API 路徑前綴
 @RequiredArgsConstructor // 自動產生建構子注入 applicationService
+@Tag(name = "applications-controller", description = "申請單 API")
 public class ApplicationController {
 
     // 注入申請服務層，負責業務邏輯

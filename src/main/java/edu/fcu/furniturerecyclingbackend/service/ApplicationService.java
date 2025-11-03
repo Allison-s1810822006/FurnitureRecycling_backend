@@ -8,6 +8,7 @@ import edu.fcu.furniturerecyclingbackend.repository.ScheduleRepository;
 import edu.fcu.furniturerecyclingbackend.repository.StationRepository;
 import edu.fcu.furniturerecyclingbackend.repository.FurnitureItemRepository;
 import edu.fcu.furniturerecyclingbackend.repository.ApplicationItemRepository;
+import edu.fcu.furniturerecyclingbackend.repository.AppUsersRepository;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,28 +28,37 @@ public class ApplicationService {
     private final ScheduleRepository scheduleRepository;
     private final FurnitureItemRepository furnitureItemRepository;
     private final ApplicationItemRepository applicationItemRepository;
+    private final AppUsersRepository appUsersRepository;
 
     // 使用 Application#isLocked() 檢查是否鎖定（已受理）
 
     /** 建立新的清運申請 → 回傳 DTO */
     @Transactional
     public ApplicationResponseDto createApplication(ApplicationRequestDto dto) {
-        // 驗證站點（僅驗證存在，不再使用 station 實體）
-        if (!stationRepository.existsById(dto.getStationId())) {
-            throw new IllegalArgumentException("Invalid stationId");
+        if (dto.getUserId() == null) {
+            throw new IllegalArgumentException("userId 不可為 null");
         }
-
-        // 驗證時段
-        Schedule schedule = scheduleRepository.findById(dto.getScheduleId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid scheduleId"));
-
-        // 驗證日期一致
-        if (!schedule.getScheduleDate().equals(dto.getRequestedDate())) {
-            throw new IllegalArgumentException("requestedDate must equal schedule_date");
+        if (dto.getStationId() == null) {
+            throw new IllegalArgumentException("stationId 不可為 null");
         }
-
+        if (dto.getRequestedDate() == null) {
+            throw new IllegalArgumentException("requestedDate 不可為 null");
+        }
+        AppUsers user = appUsersRepository.findById(dto.getUserId())
+            .orElseThrow(() -> new IllegalArgumentException("找不到使用者: " + dto.getUserId()));
+        Station station = stationRepository.findById(dto.getStationId())
+            .orElseThrow(() -> new IllegalArgumentException("找不到站點: " + dto.getStationId()));
+        Schedule schedule = null;
+        if (dto.getScheduleId() != null) {
+            schedule = scheduleRepository.findById(dto.getScheduleId())
+                .orElseThrow(() -> new IllegalArgumentException("找不到清運時段: " + dto.getScheduleId()));
+            if (!schedule.getScheduleDate().equals(dto.getRequestedDate())) {
+                throw new IllegalArgumentException("requestedDate 必須等於 schedule_date");
+            }
+        }
         Application app = new Application();
-        app.setUserId(dto.getUserId());
+        app.setUser(user);
+        app.setStation(station);
         app.setSchedule(schedule);
         app.setRequestedDate(dto.getRequestedDate());
         app.setTotalItems(Optional.ofNullable(dto.getTotalItems()).orElse(0));
@@ -172,7 +182,7 @@ public class ApplicationService {
     private ApplicationResponseDto toDto(Application app) {
         ApplicationResponseDto dto = new ApplicationResponseDto();
         dto.setApplicationId(app.getApplicationId());
-        dto.setUserId(app.getUserId());
+        dto.setUserId(app.getUser() != null ? app.getUser().getUserId() : null); // 修正：取得 AppUsers 關聯的 UUID
         dto.setStationId(app.getStation() != null ? app.getStation().getStationId() : null); // ApplicationResponseDto.stationId 型別已改為 String
         dto.setScheduleId(app.getSchedule() != null ? app.getSchedule().getScheduleId() : null);
         dto.setRequestedDate(app.getRequestedDate());

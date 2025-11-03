@@ -6,6 +6,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.GenericGenerator;
+import jakarta.persistence.GeneratedValue;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -22,6 +24,9 @@ import java.util.UUID;
 public class AppUsers {
     /** 用戶主鍵 UUID，對應 app_users.user_id */
     @Id
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "user_id", updatable = false, nullable = false)
     private UUID userId;  // 主鍵，使用 UUID 類型
 
     /** 用戶姓名，對應 app_users.full_name */

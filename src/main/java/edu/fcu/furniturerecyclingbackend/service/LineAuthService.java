@@ -15,6 +15,7 @@ import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import edu.fcu.furniturerecyclingbackend.config.LineProperties;
 import edu.fcu.furniturerecyclingbackend.dto.LineProfile;
 import edu.fcu.furniturerecyclingbackend.dto.LineTokenResponse;
+import edu.fcu.furniturerecyclingbackend.repository.AppUsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class LineAuthService {
     private final LineProperties props;
     private final RestClient http = RestClient.create();
     private final ObjectMapper om = new ObjectMapper();
+    private final AppUsersRepository appUsersRepository; // 注入會員資料庫 Repository
 
     /** 產授權網址（注意：這裡會自動 encode redirect_uri）。 */
     public String buildAuthorizeUrl(String state, String nonce) {
@@ -148,5 +150,30 @@ public class LineAuthService {
     public String bindOrLogin(LineProfile p) {
         // TODO: 用你的 UserRepository 查/建，再簽發自家 JWT（HS256/RS256 皆可）
         return "DUMMY_JWT_" + p.getLineUserId();
+    }
+
+    /**
+     * 判斷 LINE userId 是否已綁定會員
+     * @param lineUserId LINE userId
+     * @return 是否已綁定
+     */
+    public boolean isLineUserBound(String lineUserId) {
+        // 查詢 AppUsersRepository 是否有此 LINE userId
+        return appUsersRepository.findByLineUserId(lineUserId).isPresent();
+    }
+
+    /**
+     * 已綁定會員登入，回傳 JWT（或建立 session）
+     * @param lineUserId LINE userId
+     * @return JWT 字串
+     */
+    public String loginWithLineUser(String lineUserId) {
+        // 查詢會員，簽發 JWT（此處僅示意，實際可用 JWT 工具）
+        var userOpt = appUsersRepository.findByLineUserId(lineUserId);
+        if (userOpt.isPresent()) {
+            // TODO: 實際簽發 JWT
+            return "DUMMY_JWT_" + lineUserId;
+        }
+        throw new RuntimeException("LINE user not bound");
     }
 }

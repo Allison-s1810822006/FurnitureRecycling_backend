@@ -22,19 +22,20 @@ public class Application {
     /** 申請單主鍵，UUID */
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "application_id")
+    @Column(name = "application_id", nullable = false)
     private UUID applicationId;
 
-    /** 申請人主鍵，對應 app_users.user_id */
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    /** 申請人，對應 app_users.user_id */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "user_id", nullable = false)
+    private AppUsers user;
 
     /**
      * 關聯：行程（Schedule），外鍵 schedule_id
      * 單向關聯，Schedule 端無回指集合
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "schedule_id")
+    @JoinColumn(name = "schedule_id", nullable = true)
     private Schedule schedule;
 
     /**
@@ -42,36 +43,36 @@ public class Application {
      * 對應 stations 資料表主鍵
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "station_id", referencedColumnName = "station_id", nullable = false)
+    @JoinColumn(name = "station_id", referencedColumnName = "station_id", nullable = true)
     private Station station;
 
     /** 申請日期，對應 requested_date 欄位 */
-    @Column(name = "requested_date", nullable = false)
+    @Column(name = "requested_date", nullable = true)
     private LocalDate requestedDate;
 
     /** 申請狀態，enum 對應 status 欄位 */
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = true)
     private ApplicationStatus status = ApplicationStatus.SUBMITTED;
 
     /** 建議車型，對應 suggested_vehicle 欄位 */
-    @Column(name = "suggested_vehicle")
+    @Column(name = "suggested_vehicle", nullable = true)
     private String suggestedVehicle;
 
     /** 家具總件數，對應 total_items 欄位 */
-    @Column(name = "total_items", nullable = false)
+    @Column(name = "total_items", nullable = true)
     private Integer totalItems = 0;
 
     /** 家具總體積（立方米），對應 total_volume_m3 欄位 */
-    @Column(name = "total_volume_m3", nullable = false)
+    @Column(name = "total_volume_m3", nullable = true)
     private BigDecimal totalVolumeM3 = BigDecimal.ZERO;
 
     /** 申請建立時間，對應 created_at 欄位 */
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = true, updatable = false)
     private Instant createdAt;
 
     /** 申請更新時間，對應 updated_at 欄位 */
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", nullable = true)
     private Instant updatedAt;
 
     /**

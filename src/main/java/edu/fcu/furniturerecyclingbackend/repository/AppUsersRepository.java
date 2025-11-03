@@ -10,4 +10,11 @@ public interface AppUsersRepository extends JpaRepository<AppUsers, UUID> {
     // 自訂根據 email 查找使用者的方法
     Optional<AppUsers> findByEmail(String email);
     boolean existsByEmail(String email);
+
+    /**
+     * 根據 LINE userId 查找會員
+     * @param lineUserId LINE userId
+     * @return Optional<AppUsers>
+     */
+    Optional<AppUsers> findByLineUserId(String lineUserId);
 }

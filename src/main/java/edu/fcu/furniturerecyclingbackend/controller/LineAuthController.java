@@ -46,7 +46,7 @@ public class LineAuthController {
 
     /**
      * LINE callback API
-     * 驗證 state，交換 token，驗證 id_token 並取得 LINE 使用者資料
+     * 處理 LINE 授權回傳，判斷新舊會員，回傳 profile 或 JWT。
      * @param code LINE 授權回傳 code
      * @param state LINE 授權回傳 state
      * @param session 使用者 session
@@ -61,18 +61,24 @@ public class LineAuthController {
         }
         // 交換 code 取得 token
         var token = lineAuthService.exchangeCodeForToken(code);
-        System.out.println("LINE id_token: " + token.idToken()); // log id_token
         try {
             // 驗證 id_token 並取得 LINE 使用者資料
             var profile = lineAuthService.verifyIdTokenAndExtractProfile(
                     token.idToken(), (String) session.getAttribute("LINE_NONCE"));
-            // 綁定或登入本地帳號，取得 JWT
-            String jwt = lineAuthService.bindOrLogin(profile); // 這裡回你家的 JWT
-            // 回傳登入成功頁面與 JWT
-            resp.setContentType("text/html; charset=UTF-8");
-            resp.getWriter().write("<html><head><title>登入成功</title></head><body><h2>登入成功！</h2><p>JWT: " + jwt + "</p></body></html>");
+            // 判斷是否已綁定會員
+            boolean isBound = lineAuthService.isLineUserBound(profile.getLineUserId());
+            if (isBound) {
+                // 已綁定：建立登入狀態，回傳 JWT 並導向 application 頁
+                String jwt = lineAuthService.loginWithLineUser(profile.getLineUserId());
+                session.setAttribute("JWT", jwt); // 建立 session 狀態
+                resp.sendRedirect("/application"); // 導向 application 頁
+            } else {
+                // 未綁定：回傳 LINE profile 給前端，進入基本資料填寫頁
+                session.setAttribute("LINE_PROFILE", profile); // 暫存 profile
+                resp.setContentType("application/json; charset=UTF-8");
+                resp.getWriter().write(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(profile));
+            }
         } catch (Exception e) {
-            // 驗證失敗，回傳錯誤
             logger.error("verify id_token failed", e);
             resp.sendError(500, "verify id_token failed: " + e.getMessage());
         }

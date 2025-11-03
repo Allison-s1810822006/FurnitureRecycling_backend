@@ -1,14 +1,10 @@
--- WARNING: This schema is for context only and is not meant to be run.
--- Table order and constraints may not be valid for execution.
 
 CREATE TABLE public.app_users (
 user_id uuid NOT NULL DEFAULT gen_random_uuid() UNIQUE,
 full_name character varying,
-password_hash character varying,
 is_admin boolean DEFAULT false,
 email character varying,
 phone character varying,
-address character varying,
 line_user_id character varying UNIQUE,
 line_display_name character varying,
 line_picture_url character varying,
@@ -62,6 +58,8 @@ schedule_date date NOT NULL,
 applications_count integer NOT NULL DEFAULT 0,
 eta timestamp with time zone NOT NULL,
 plate_number character varying NOT NULL,
+created_at timestamp with time zone NOT NULL DEFAULT now(),
+updated_at timestamp with time zone NOT NULL DEFAULT now(),
 CONSTRAINT schedules_pkey PRIMARY KEY (schedule_id),
 CONSTRAINT schedules_plate_number_fkey FOREIGN KEY (plate_number) REFERENCES public.vehicles(plate_number)
 );

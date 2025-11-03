@@ -2,6 +2,7 @@ package edu.fcu.furniturerecyclingbackend.controller;
 
 import edu.fcu.furniturerecyclingbackend.dto.ApplicationItemDto;
 import edu.fcu.furniturerecyclingbackend.service.ApplicationItemService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/application-items")
 @RequiredArgsConstructor
+@Tag(name = "application-items-controller", description = "申請明細 API")
 public class ApplicationItemController {
     private final ApplicationItemService applicationItemService;
 

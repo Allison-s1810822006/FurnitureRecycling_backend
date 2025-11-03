@@ -3,6 +3,7 @@ package edu.fcu.furniturerecyclingbackend.controller;
 import edu.fcu.furniturerecyclingbackend.model.FurnitureItem;
 import edu.fcu.furniturerecyclingbackend.repository.ApplicationItemRepository;
 import edu.fcu.furniturerecyclingbackend.repository.FurnitureItemRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +14,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/furniture")
+@Tag(name = "furniture-controller", description = "家具項目 API")
 public class FurnitureItemController {
 
     @Autowired

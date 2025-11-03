@@ -7,9 +7,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import edu.fcu.furniturerecyclingbackend.dto.RegistrationDTO;
+
 import java.util.Optional;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "app-users-controller", description = "使用者資料 API")
 @RestController
 @RequestMapping("/api/users")
 public class AppUsersController {
@@ -56,5 +61,22 @@ public class AppUsersController {
     public ResponseEntity<Void> deleteUser(@PathVariable UUID userId) {
         appUsersService.deleteUser(userId);
         return ResponseEntity.noContent().build();  // 返回 204 No Content
+    }
+
+    /**
+     * LINE快速註冊 API
+     * 前端補齊資料後呼叫，建立新會員並登入。
+     * @param registrationDTO 前端送來的註冊資料（含 LINE userId、displayName、email 等）
+     * @param session 使用者 session
+     * @return 新會員資料
+     */
+    @PostMapping("/line-register")
+    public ResponseEntity<AppUsers> registerWithLine(@RequestBody RegistrationDTO registrationDTO, jakarta.servlet.http.HttpSession session) {
+        // 建立新會員
+        AppUsers createdUser = appUsersService.createUserFromLine(registrationDTO);
+        // 建立登入狀態（可依需求產生 JWT 或 session）
+        session.setAttribute("USER_ID", createdUser.getUserId().toString()); // 存成字串，避免型別問題
+        // 根據前端按鈕導向（可由前端決定跳轉頁面）
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 }
