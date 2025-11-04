@@ -18,6 +18,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +47,12 @@ public class ApplicationService {
         if (dto.getRequestedDate() == null) {
             throw new IllegalArgumentException("requestedDate 不可為 null");
         }
+        // ✅ 新增：清運日期至少為後天（以後端 server 時區為準）
+        LocalDate today = LocalDate.now();
+        LocalDate minDate = today.plusDays(2);
+        if (dto.getRequestedDate().isBefore(minDate)) {
+            throw new IllegalArgumentException("清運日期至少需為後天（" + minDate + "）");
+        }
         AppUsers user = appUsersRepository.findById(dto.getUserId())
             .orElseThrow(() -> new IllegalArgumentException("找不到使用者: " + dto.getUserId()));
         Station station = stationRepository.findById(dto.getStationId())
@@ -56,143 +65,137 @@ public class ApplicationService {
                 throw new IllegalArgumentException("requestedDate 必須等於 schedule_date");
             }
         }
+        // 新邏輯：使用 DTO 明細重算 totals，並合併相同家具（合併 quantity 與 photos）
+        if (dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new IllegalArgumentException("申請至少需有一個家具項目");
+        }
+
         Application app = new Application();
         app.setUser(user);
         app.setStation(station);
-        app.setSchedule(schedule);
+        app.setSchedule(schedule); // 可能為 null
         app.setRequestedDate(dto.getRequestedDate());
-        app.setTotalItems(Optional.ofNullable(dto.getTotalItems()).orElse(0));
-        app.setTotalVolumeM3(Optional.ofNullable(dto.getTotalVolumeM3()).orElse(BigDecimal.ZERO));
-        app.setSuggestedVehicle(Optional.ofNullable(dto.getSuggestedVehicle()).orElse("FLATBED"));
         app.setStatus(Optional.ofNullable(dto.getStatus()).orElse(ApplicationStatus.SUBMITTED));
+        app.setSuggestedVehicle(Optional.ofNullable(dto.getSuggestedVehicle()).orElse("FLATBED"));
 
-        // 驗證 items 家具申請項目
-        if (dto.getItems() == null || dto.getItems().isEmpty()) {
-            throw new IllegalArgumentException("申請至少需有一個已添加項目");
-        }
-        // 驗證：同一申請只能有一個家具主類型及細分選項
-        // 已移除 getCategory 驗證，僅保留細分選項驗證
-        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getItemName).distinct().count() > 1) {
-            throw new IllegalArgumentException("每次申請只能選擇一個細分選項");
-        }
-        // 建立 ApplicationItem 實體並驗證
+        int totalItems = 0;
+        BigDecimal totalVolume = BigDecimal.ZERO;
+
+        Map<Integer, ApplicationItem> groupedItems = new HashMap<>();
+
         for (ApplicationRequestDto.FurnitureItemDto itemDto : dto.getItems()) {
-            // 驗證數量範圍（不可小於1，不可大於5）
-            if (itemDto.getQuantity() == null || itemDto.getQuantity() < 1 || itemDto.getQuantity() > 5) {
-                throw new IllegalArgumentException("家具數量必須介於 1 到 5 之間");
+            Integer fid = itemDto.getFurnitureItemId();
+            if (fid == null) {
+                throw new IllegalArgumentException("無效的家具 ID: null");
             }
-            // 驗證照片數量需與家具數量相符
-            if (itemDto.getPhotos() == null || itemDto.getPhotos().size() != itemDto.getQuantity()) {
-                throw new IllegalArgumentException(
-                    String.format("%s 照片數量 (%d) 必須等於選擇的數量 (%d)",
-                        itemDto.getItemName(),
-                        itemDto.getPhotos() == null ? 0 : itemDto.getPhotos().size(), itemDto.getQuantity()));
-            }
-            // 驗證照片格式（jpg/png）與大小（由前端或檔案服務驗證）
-            for (String url : itemDto.getPhotos()) {
-                if (!url.toLowerCase().matches(".+\\.(jpg|jpeg|png)$")) {
-                    throw new IllegalArgumentException("照片格式必須為 jpg 或 png，錯誤檔案: " + url);
+            FurnitureItem furn = furnitureItemRepository.findById(fid)
+                    .orElseThrow(() -> new IllegalArgumentException("無效的家具 ID: " + fid));
+
+            // 累計數量與體積
+            totalItems += itemDto.getQuantity();
+            double singleVolume = furn.getLengthM() * furn.getWidthM() * furn.getHeightM();
+            BigDecimal volumeForThisItem = BigDecimal.valueOf(singleVolume)
+                    .multiply(BigDecimal.valueOf(itemDto.getQuantity()));
+            totalVolume = totalVolume.add(volumeForThisItem);
+
+            // 合併相同家具項目
+            groupedItems.compute(fid, (key, existing) -> {
+                if (existing == null) {
+                    ApplicationItem newItem = new ApplicationItem();
+                    newItem.setApplication(app);
+                    newItem.setFurnitureItemId(fid);
+                    newItem.setItemName(itemDto.getItemName() != null ? itemDto.getItemName() : furn.getItemName());
+                    newItem.setQuantity(itemDto.getQuantity());
+                    newItem.setPhotos(new ArrayList<>(itemDto.getPhotos() == null ? List.of() : itemDto.getPhotos()));
+                    return newItem;
+                } else {
+                    existing.setQuantity(existing.getQuantity() + itemDto.getQuantity());
+                    List<String> mergedPhotos = new ArrayList<>(existing.getPhotos() == null ? List.of() : existing.getPhotos());
+                    if (itemDto.getPhotos() != null) mergedPhotos.addAll(itemDto.getPhotos());
+                    existing.setPhotos(mergedPhotos);
+                    return existing;
                 }
-                // 檔案大小驗證由前端或檔案服務負責
-            }
-            // 建立 ApplicationItem 實體
-            ApplicationItem applicationItem = new ApplicationItem();
-            applicationItem.setApplication(app); // 關聯申請
-            applicationItem.setItemName(itemDto.getItemName());
-            applicationItem.setQuantity(itemDto.getQuantity());
-            applicationItem.setPhotos(itemDto.getPhotos());
-            // 直接設置 furnitureItemId，確保型別為 Integer
-            if (itemDto.getFurnitureItemId() != null) {
-                applicationItem.setFurnitureItemId(Integer.valueOf(itemDto.getFurnitureItemId().toString()));
-            }
-            // 加入申請單
-            if (app.getApplicationItems() == null) app.setApplicationItems(new java.util.ArrayList<>());
-            app.getApplicationItems().add(applicationItem);
+            });
         }
 
-        // 驗證該站點該日期剩餘可收取數量（最多5件）
-        Integer alreadyCount = applicationItemRepository.sumQuantityByStationIdAndRequestedDate(dto.getStationId(), dto.getRequestedDate());
-        if (alreadyCount == null) alreadyCount = 0;
-        int newCount = dto.getItems().stream().mapToInt(ApplicationRequestDto.FurnitureItemDto::getQuantity).sum();
-        if (alreadyCount + newCount > 5) {
-            throw new IllegalArgumentException(String.format("該站點 %s 日期 %s 最多只能收取5件家具，剩餘可收取數量：%d", dto.getStationId(), dto.getRequestedDate(), 5 - alreadyCount));
-        }
-
-        // 時間交給 @PrePersist/@PreUpdate
-        Application saved = applicationRepository.save(app);
-        return toDto(saved);
-    }
-
-    /** 查全部 → 回傳 DTO 列表 */
-    public List<ApplicationResponseDto> findAll() {
-        return applicationRepository.findAll()
-                .stream()
-                .map(this::toDto)
-                .toList();
-    }
-
-    /** 查單一 → 回傳 DTO（或 null） */
-    public ApplicationResponseDto findById(UUID id) {
-        return applicationRepository.findById(id)
-                .map(this::toDto)
-                .orElse(null);
-    }
-
-    /** 更新（部分欄位） → 回傳 DTO */
-    @Transactional
-    public ApplicationResponseDto update(UUID id, ApplicationRequestDto dto) {
-        Application app = applicationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Application not found"));
-
-        // 在進入編輯流程前，統一由實體驗證是否允許編輯（若已受理會拋例外）
-        app.ensureEditable();
-
-        if (dto.getScheduleId() != null) {
-            Schedule schedule = scheduleRepository.findById(dto.getScheduleId())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid scheduleId"));
-            app.setSchedule(schedule);
-        }
-        if (dto.getRequestedDate() != null) app.setRequestedDate(dto.getRequestedDate());
-        if (dto.getTotalItems() != null) app.setTotalItems(dto.getTotalItems());
-        if (dto.getTotalVolumeM3() != null) app.setTotalVolumeM3(dto.getTotalVolumeM3());
-        if (dto.getSuggestedVehicle() != null) app.setSuggestedVehicle(dto.getSuggestedVehicle());
-        if (dto.getStatus() != null) app.setStatus(dto.getStatus()); // enum
+        app.setTotalItems(totalItems);
+        app.setTotalVolumeM3(totalVolume);
+        app.setApplicationItems(new ArrayList<>(groupedItems.values()));
 
         Application saved = applicationRepository.save(app);
         return toDto(saved);
     }
 
-    /** 刪除 → 回傳是否成功 */
-    @Transactional
-    public boolean delete(UUID id) {
-        var opt = applicationRepository.findById(id);
-        if (opt.isPresent()) {
-            Application app = opt.get();
-            // 刪除也統一使用實體的檢查（若已受理會拋例外）
-            app.ensureEditable();
-            applicationRepository.deleteById(id);
-            return true;
-        }
-        return false;
-    }
+     /** 查全部 → 回傳 DTO 列表 */
+     public List<ApplicationResponseDto> findAll() {
+         return applicationRepository.findAll()
+                 .stream()
+                 .map(this::toDto)
+                 .toList();
+     }
 
-    /* ===================== Private Mapper ===================== */
+     /** 查單一 → 回傳 DTO（或 null） */
+     public ApplicationResponseDto findById(UUID id) {
+         return applicationRepository.findById(id)
+                 .map(this::toDto)
+                 .orElse(null);
+     }
 
-    /** 實體 → DTO（把關聯物件攤平成 ID，避免 swagger 掃描到雙向關聯） */
-    private ApplicationResponseDto toDto(Application app) {
-        ApplicationResponseDto dto = new ApplicationResponseDto();
-        dto.setApplicationId(app.getApplicationId());
-        dto.setUserId(app.getUser() != null ? app.getUser().getUserId() : null); // 修正：取得 AppUsers 關聯的 UUID
-        dto.setStationId(app.getStation() != null ? app.getStation().getStationId() : null); // ApplicationResponseDto.stationId 型別已改為 String
-        dto.setScheduleId(app.getSchedule() != null ? app.getSchedule().getScheduleId() : null);
-        dto.setRequestedDate(app.getRequestedDate());
-        dto.setTotalItems(app.getTotalItems());
-        dto.setTotalVolumeM3(app.getTotalVolumeM3());
-        dto.setSuggestedVehicle(app.getSuggestedVehicle());
-        dto.setStatus(app.getStatus());
-        dto.setEditable(!app.isLocked());
-        dto.setCreatedAt(app.getCreatedAt());
-        dto.setUpdatedAt(app.getUpdatedAt());
-        return dto;
-    }
-}
+     /** 更新（部分欄位） → 回傳 DTO */
+     @Transactional
+     public ApplicationResponseDto update(UUID id, ApplicationRequestDto dto) {
+         Application app = applicationRepository.findById(id)
+                 .orElseThrow(() -> new IllegalArgumentException("Application not found"));
+
+         // 在進入編輯流程前，統一由實體驗證是否允許編輯（若已受理會拋例外）
+         app.ensureEditable();
+
+         if (dto.getScheduleId() != null) {
+             Schedule schedule = scheduleRepository.findById(dto.getScheduleId())
+                     .orElseThrow(() -> new IllegalArgumentException("Invalid scheduleId"));
+             app.setSchedule(schedule);
+         }
+         if (dto.getRequestedDate() != null) app.setRequestedDate(dto.getRequestedDate());
+         if (dto.getTotalItems() != null) app.setTotalItems(dto.getTotalItems());
+         if (dto.getTotalVolumeM3() != null) app.setTotalVolumeM3(dto.getTotalVolumeM3());
+         if (dto.getSuggestedVehicle() != null) app.setSuggestedVehicle(dto.getSuggestedVehicle());
+         if (dto.getStatus() != null) app.setStatus(dto.getStatus()); // enum
+
+         Application saved = applicationRepository.save(app);
+         return toDto(saved);
+     }
+
+     /** 刪除 → 回傳是否成功 */
+     @Transactional
+     public boolean delete(UUID id) {
+         var opt = applicationRepository.findById(id);
+         if (opt.isPresent()) {
+             Application app = opt.get();
+             // 刪除也統一使用實體的檢查（若已受理會拋例外）
+             app.ensureEditable();
+             applicationRepository.deleteById(id);
+             return true;
+         }
+         return false;
+     }
+
+     /* ===================== Private Mapper ===================== */
+
+     /** 實體 → DTO（把關聯物件攤平成 ID，避免 swagger 掃描到雙向關聯） */
+     private ApplicationResponseDto toDto(Application app) {
+         ApplicationResponseDto dto = new ApplicationResponseDto();
+         dto.setApplicationId(app.getApplicationId());
+         dto.setUserId(app.getUser() != null ? app.getUser().getUserId() : null); // 修正：取得 AppUsers 關聯的 UUID
+         dto.setStationId(app.getStation() != null ? app.getStation().getStationId() : null); // ApplicationResponseDto.stationId 型別已改為 String
+         dto.setScheduleId(app.getSchedule() != null ? app.getSchedule().getScheduleId() : null);
+         dto.setRequestedDate(app.getRequestedDate());
+         dto.setTotalItems(app.getTotalItems());
+         dto.setTotalVolumeM3(app.getTotalVolumeM3());
+         dto.setSuggestedVehicle(app.getSuggestedVehicle());
+         dto.setStatus(app.getStatus());
+         dto.setEditable(!app.isLocked());
+         dto.setCreatedAt(app.getCreatedAt());
+         dto.setUpdatedAt(app.getUpdatedAt());
+         return dto;
+     }
+ }

@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import edu.fcu.furniturerecyclingbackend.dto.RegistrationDTO;
+import edu.fcu.furniturerecyclingbackend.dto.SimpleLoginRequest;
+import edu.fcu.furniturerecyclingbackend.dto.CurrentUserDto;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -78,5 +80,22 @@ public class AppUsersController {
         session.setAttribute("USER_ID", createdUser.getUserId().toString()); // 存成字串，避免型別問題
         // 根據前端按鈕導向（可由前端決定跳轉頁面）
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+    }
+
+    // Simple login / register endpoint (creates user if not exists)
+    @PostMapping("/simple-login")
+    public ResponseEntity<CurrentUserDto> simpleLogin(@RequestBody SimpleLoginRequest req) {
+        AppUsers user = appUsersService.simpleLoginOrRegister(
+                req.getFullName(),
+                req.getEmail(),
+                req.getPhone()
+        );
+
+        CurrentUserDto dto = new CurrentUserDto();
+        dto.setUserId(user.getUserId());
+        dto.setFullName(user.getFullName());
+        dto.setEmail(user.getEmail());
+
+        return ResponseEntity.ok(dto);
     }
 }

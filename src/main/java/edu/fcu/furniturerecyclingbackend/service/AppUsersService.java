@@ -67,4 +67,24 @@ public class AppUsersService {
         // 儲存至資料庫
         return appUsersRepository.save(user);
     }
+
+    /**
+     * Simple login: find user by email, or create a new user with provided info.
+     * If a user exists, update fullName/phone if they differ.
+     */
+    public AppUsers simpleLoginOrRegister(String fullName, String email, String phone) {
+        if ((email == null || email.isBlank()) && (phone == null || phone.isBlank())) {
+            throw new IllegalArgumentException("請至少填寫 Email 或電話");
+        }
+
+        return appUsersRepository.findFirstByEmailOrPhone(email, phone)
+                .orElseGet(() -> {
+                    AppUsers u = new AppUsers();
+                    u.setFullName(fullName);
+                    u.setEmail(email);
+                    u.setPhone(phone);
+                    return appUsersRepository.save(u);
+                });
+    }
+
 }

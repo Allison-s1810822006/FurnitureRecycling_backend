@@ -17,4 +17,7 @@ public interface AppUsersRepository extends JpaRepository<AppUsers, UUID> {
      * @return Optional<AppUsers>
      */
     Optional<AppUsers> findByLineUserId(String lineUserId);
+
+    // 根據 email 或 phone 查找第一筆使用者
+    Optional<AppUsers> findFirstByEmailOrPhone(String email, String phone);
 }
