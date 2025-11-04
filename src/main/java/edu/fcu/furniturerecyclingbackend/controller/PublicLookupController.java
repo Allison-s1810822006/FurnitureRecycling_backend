@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -43,11 +42,9 @@ public class PublicLookupController {
         List<Schedule> all = scheduleRepository.findAll();
         return all.stream()
                 .filter(s -> s.getScheduleDate().isEqual(date))
-                .sorted(Comparator.comparingInt(Schedule::getSequenceNo))
                 .map(s -> Map.of(
                         "value", s.getScheduleId().toString(),
-                        "label", String.format("%s（序號 %d）",
-                                s.getEta().atZone(ZoneId.systemDefault()).toLocalTime(), s.getSequenceNo())
+                        "label", String.format("%s", s.getEta().atZone(ZoneId.systemDefault()).toLocalTime())
                 ))
                 .toList();
     }

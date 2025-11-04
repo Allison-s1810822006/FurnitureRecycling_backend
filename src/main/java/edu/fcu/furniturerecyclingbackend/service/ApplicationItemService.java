@@ -3,7 +3,6 @@ package edu.fcu.furniturerecyclingbackend.service;
 import edu.fcu.furniturerecyclingbackend.dto.ApplicationItemDto;
 import edu.fcu.furniturerecyclingbackend.model.Application;
 import edu.fcu.furniturerecyclingbackend.model.ApplicationItem;
-import edu.fcu.furniturerecyclingbackend.model.FurnitureItem;
 import edu.fcu.furniturerecyclingbackend.repository.ApplicationItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -26,21 +25,16 @@ public class ApplicationItemService {
     /** 新增 ApplicationItem */
     public ApplicationItemDto create(ApplicationItemDto dto) {
         ApplicationItem entity = new ApplicationItem();
-        // 複製基本欄位
         entity.setItemName(dto.getItemName());
         entity.setQuantity(dto.getQuantity());
         entity.setPhotos(dto.getPhotos());
-        // 關聯 Application
         if (dto.getApplicationId() != null) {
             Application app = new Application();
             app.setApplicationId(dto.getApplicationId());
             entity.setApplication(app);
         }
-        // 關聯 FurnitureItem
         if (dto.getFurnitureItemId() != null) {
-            FurnitureItem furniture = new FurnitureItem();
-            furniture.setItemId(dto.getFurnitureItemId());
-            entity.setFurnitureItem(furniture);
+            entity.setFurnitureItemId(dto.getFurnitureItemId());
         }
         ApplicationItem saved = applicationItemRepository.save(entity);
         return toDto(saved);
@@ -92,9 +86,7 @@ public class ApplicationItemService {
         if (entity.getApplication() != null) {
             dto.setApplicationId(entity.getApplication().getApplicationId());
         }
-        if (entity.getFurnitureItem() != null) {
-            dto.setFurnitureItemId(entity.getFurnitureItem().getItemId());
-        }
+        dto.setFurnitureItemId(entity.getFurnitureItemId());
         return dto;
     }
 }

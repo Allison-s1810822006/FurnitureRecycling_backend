@@ -7,6 +7,9 @@ import edu.fcu.furniturerecyclingbackend.repository.ApplicationRepository;
 import edu.fcu.furniturerecyclingbackend.repository.ScheduleRepository;
 import edu.fcu.furniturerecyclingbackend.repository.StationRepository;
 import edu.fcu.furniturerecyclingbackend.repository.FurnitureItemRepository;
+import edu.fcu.furniturerecyclingbackend.repository.ApplicationItemRepository;
+import edu.fcu.furniturerecyclingbackend.repository.AppUsersRepository;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,28 +27,38 @@ public class ApplicationService {
     private final StationRepository stationRepository;
     private final ScheduleRepository scheduleRepository;
     private final FurnitureItemRepository furnitureItemRepository;
+    private final ApplicationItemRepository applicationItemRepository;
+    private final AppUsersRepository appUsersRepository;
 
     // 使用 Application#isLocked() 檢查是否鎖定（已受理）
 
     /** 建立新的清運申請 → 回傳 DTO */
     @Transactional
     public ApplicationResponseDto createApplication(ApplicationRequestDto dto) {
-        // 驗證站點（僅驗證存在，不再使用 station 實體）
-        if (!stationRepository.existsById(dto.getStationId())) {
-            throw new IllegalArgumentException("Invalid stationId");
+        if (dto.getUserId() == null) {
+            throw new IllegalArgumentException("userId 不可為 null");
         }
-
-        // 驗證時段
-        Schedule schedule = scheduleRepository.findById(dto.getScheduleId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid scheduleId"));
-
-        // 驗證日期一致
-        if (!schedule.getScheduleDate().equals(dto.getRequestedDate())) {
-            throw new IllegalArgumentException("requestedDate must equal schedule_date");
+        if (dto.getStationId() == null) {
+            throw new IllegalArgumentException("stationId 不可為 null");
         }
-
+        if (dto.getRequestedDate() == null) {
+            throw new IllegalArgumentException("requestedDate 不可為 null");
+        }
+        AppUsers user = appUsersRepository.findById(dto.getUserId())
+            .orElseThrow(() -> new IllegalArgumentException("找不到使用者: " + dto.getUserId()));
+        Station station = stationRepository.findById(dto.getStationId())
+            .orElseThrow(() -> new IllegalArgumentException("找不到站點: " + dto.getStationId()));
+        Schedule schedule = null;
+        if (dto.getScheduleId() != null) {
+            schedule = scheduleRepository.findById(dto.getScheduleId())
+                .orElseThrow(() -> new IllegalArgumentException("找不到清運時段: " + dto.getScheduleId()));
+            if (!schedule.getScheduleDate().equals(dto.getRequestedDate())) {
+                throw new IllegalArgumentException("requestedDate 必須等於 schedule_date");
+            }
+        }
         Application app = new Application();
-        app.setUserId(dto.getUserId());
+        app.setUser(user);
+        app.setStation(station);
         app.setSchedule(schedule);
         app.setRequestedDate(dto.getRequestedDate());
         app.setTotalItems(Optional.ofNullable(dto.getTotalItems()).orElse(0));
@@ -58,10 +71,8 @@ public class ApplicationService {
             throw new IllegalArgumentException("申請至少需有一個已添加項目");
         }
         // 驗證：同一申請只能有一個家具主類型及細分選項
-        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getCategory).distinct().count() > 1) {
-            throw new IllegalArgumentException("每次申請只能選擇一個家具主類型");
-        }
-        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getSubType).distinct().count() > 1) {
+        // 已移除 getCategory 驗證，僅保留細分選項驗證
+        if (dto.getItems().stream().map(ApplicationRequestDto.FurnitureItemDto::getItemName).distinct().count() > 1) {
             throw new IllegalArgumentException("每次申請只能選擇一個細分選項");
         }
         // 建立 ApplicationItem 實體並驗證
@@ -73,8 +84,8 @@ public class ApplicationService {
             // 驗證照片數量需與家具數量相符
             if (itemDto.getPhotos() == null || itemDto.getPhotos().size() != itemDto.getQuantity()) {
                 throw new IllegalArgumentException(
-                    String.format("%s-%s 照片數量 (%d) 必須等於選擇的數量 (%d)",
-                        itemDto.getCategory(), itemDto.getSubType(),
+                    String.format("%s 照片數量 (%d) 必須等於選擇的數量 (%d)",
+                        itemDto.getItemName(),
                         itemDto.getPhotos() == null ? 0 : itemDto.getPhotos().size(), itemDto.getQuantity()));
             }
             // 驗證照片格式（jpg/png）與大小（由前端或檔案服務驗證）
@@ -87,20 +98,21 @@ public class ApplicationService {
             // 建立 ApplicationItem 實體
             ApplicationItem applicationItem = new ApplicationItem();
             applicationItem.setApplication(app); // 關聯申請
-            applicationItem.setItemName(itemDto.getSubType());
+            applicationItem.setItemName(itemDto.getItemName());
             applicationItem.setQuantity(itemDto.getQuantity());
             applicationItem.setPhotos(itemDto.getPhotos());
-            // 關聯 FurnitureItem
-            FurnitureItem furnitureItem = furnitureItemRepository.findById(itemDto.getFurnitureItemId())
-                .orElse(null);
-            applicationItem.setFurnitureItem(furnitureItem);
+            // 直接設置 furnitureItemId，確保型別為 Integer
+            if (itemDto.getFurnitureItemId() != null) {
+                applicationItem.setFurnitureItemId(Integer.valueOf(itemDto.getFurnitureItemId().toString()));
+            }
             // 加入申請單
             if (app.getApplicationItems() == null) app.setApplicationItems(new java.util.ArrayList<>());
             app.getApplicationItems().add(applicationItem);
         }
 
         // 驗證該站點該日期剩餘可收取數量（最多5件）
-        int alreadyCount = furnitureItemRepository.countByApplication_Station_StationIdAndApplication_RequestedDate(dto.getStationId(), dto.getRequestedDate());
+        Integer alreadyCount = applicationItemRepository.sumQuantityByStationIdAndRequestedDate(dto.getStationId(), dto.getRequestedDate());
+        if (alreadyCount == null) alreadyCount = 0;
         int newCount = dto.getItems().stream().mapToInt(ApplicationRequestDto.FurnitureItemDto::getQuantity).sum();
         if (alreadyCount + newCount > 5) {
             throw new IllegalArgumentException(String.format("該站點 %s 日期 %s 最多只能收取5件家具，剩餘可收取數量：%d", dto.getStationId(), dto.getRequestedDate(), 5 - alreadyCount));
@@ -170,7 +182,7 @@ public class ApplicationService {
     private ApplicationResponseDto toDto(Application app) {
         ApplicationResponseDto dto = new ApplicationResponseDto();
         dto.setApplicationId(app.getApplicationId());
-        dto.setUserId(app.getUserId());
+        dto.setUserId(app.getUser() != null ? app.getUser().getUserId() : null); // 修正：取得 AppUsers 關聯的 UUID
         dto.setStationId(app.getStation() != null ? app.getStation().getStationId() : null); // ApplicationResponseDto.stationId 型別已改為 String
         dto.setScheduleId(app.getSchedule() != null ? app.getSchedule().getScheduleId() : null);
         dto.setRequestedDate(app.getRequestedDate());

@@ -1,34 +1,29 @@
 package edu.fcu.furniturerecyclingbackend.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * RegistrationDTO
+ * 用於 LINE快速註冊 API，封裝前端補齊的會員資料。
+ * 包含 LINE userId、displayName、email 及其他必要欄位。
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class RegistrationDTO {
-
-    private String fullName;
+    /** LINE userId，綁定用 */
+    private String lineUserId;
+    /** 顯示名稱 */
+    private String displayName;
+    /** Email */
     private String email;
-    private String password;
-
-    // Getters and Setters
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    /** 頭像網址 */
+    private String pictureUrl;
+    /** 手機號碼，LINE 不一定提供，需前端補齊 */
+    private String phone;
+    /** 姓名，LINE 不一定提供，需前端補齊 */
+    private String fullName;
+    // 可依需求擴充其他欄位
 }
-

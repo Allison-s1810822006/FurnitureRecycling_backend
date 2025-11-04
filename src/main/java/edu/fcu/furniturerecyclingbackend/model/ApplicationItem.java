@@ -34,10 +34,9 @@ public class ApplicationItem {
     @JoinColumn(name = "application_id", referencedColumnName = "application_id", nullable = false)
     private Application application;
 
-    /** 關聯 FurnitureItem (多對一) */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "furniture_item_id", referencedColumnName = "item_id", nullable = false) // 關聯到 furniture_items 主鍵 item_id
-    private FurnitureItem furnitureItem;
+    /** 關聯 FurnitureItem (以 integer 儲存) */
+    @Column(name = "furniture_item_id")
+    private Integer furnitureItemId;
 
     /** 家具細分名稱 (例：單人沙發、雙人床架) */
     @Column(name = "item_name", nullable = false)

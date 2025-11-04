@@ -1,94 +1,43 @@
 package edu.fcu.furniturerecyclingbackend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import edu.fcu.furniturerecyclingbackend.config.StringListJsonConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.UUID;
-
+/**
+ * FurnitureItem
+ * 家具型錄 Entity，對應 furniture 資料表。
+ * 包含家具名稱、尺寸、類型、主鍵等欄位。
+ */
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
-@Table(name = "furniture")
+@Entity // JPA Entity 註解
+@Table(name = "furniture") // 對應資料表名稱
 public class FurnitureItem {
-
+    /** 家具主鍵，對應 furniture.item_id */
     @Id
-    @Column(name = "item_id", columnDefinition = "uuid")
-    private UUID itemId;  // 對應資料表欄位名稱
+    @Column(name = "item_id")
+    private Integer itemId;  // 對應資料表欄位名稱
 
-    /** 關聯 Application （多對一） */
-    @JsonIgnore // 避免雙向 JSON 遞迴
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "application_id", referencedColumnName = "application_id")
-    private Application application;
-
-    @Column(name = "item_name")
+    /** 家具名稱，對應 furniture.item_name */
+    @Column(name = "item_name", nullable = false)
     private String itemName;
 
-    @Column(name = "length_m")
+    /** 家具長度（公尺），對應 furniture.length_m */
+    @Column(name = "length_m", nullable = false)
     private Double lengthM;
 
-    @Column(name = "width_m")
+    /** 家具寬度（公尺），對應 furniture.width_m */
+    @Column(name = "width_m", nullable = false)
     private Double widthM;
 
-    @Column(name = "height_m")
+    /** 家具高度（公尺），對應 furniture.height_m */
+    @Column(name = "height_m", nullable = false)
     private Double heightM;
 
-    @Column(name = "type")
+    /** 家具類型，對應 furniture.type */
+    @Column(name = "type", nullable = false)
     private String type;
-
-    // 家具細分選項枚舉，包含所有沙發與床架細分選項
-    @Getter
-    public enum SubType {
-        SOFA_SINGLE("單人座沙發", MainType.SOFA),
-        SOFA_DOUBLE("雙人座沙發", MainType.SOFA),
-        SOFA_TRIPLE("三人座沙發", MainType.SOFA),
-        BED_SINGLE("單人床架", MainType.BED),
-        BED_DOUBLE("雙人床架", MainType.BED);
-        // 顯示名稱
-        private final String displayName;
-        // 所屬主類型
-        private final MainType mainType;
-        SubType(String displayName, MainType mainType) {
-            this.displayName = displayName;
-            this.mainType = mainType;
-        }
-    }
-
-    // 家具主類型枚舉（沙發、床架）
-    @Getter
-    public enum MainType {
-        SOFA("沙發"),
-        BED("床架");
-        private final String displayName;
-        MainType(String displayName) {
-            this.displayName = displayName;
-        }
-    }
-
-    // 家具主類型（沙發或床架），可由細分選項自動推導
-    @Enumerated(EnumType.STRING)
-    @Column(name = "main_type")
-    private MainType mainType;
-
-    // 家具細分選項（如單人座沙發、雙人床架）
-    @Enumerated(EnumType.STRING)
-    @Column(name = "sub_type")
-    private SubType subType;
-
-    // 張數（數量），代表該細分選項的數量
-    @Column(name = "item_count", nullable = false)
-    private Integer itemCount = 0;
-
-    /** 自動生成 UUID */
-    @PrePersist
-    public void prePersist() {
-        if (this.itemId == null) {
-            this.itemId = UUID.randomUUID();
-        }
-    }
 }

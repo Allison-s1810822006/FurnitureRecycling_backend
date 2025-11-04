@@ -2,6 +2,7 @@ package edu.fcu.furniturerecyclingbackend.controller;
 
 import edu.fcu.furniturerecyclingbackend.model.Station;
 import edu.fcu.furniturerecyclingbackend.service.StationService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
 
+@Tag(name = "stations-controller", description = "站點查詢 API")
 @RestController
 @RequestMapping("/api/stations")
 public class StationController {
