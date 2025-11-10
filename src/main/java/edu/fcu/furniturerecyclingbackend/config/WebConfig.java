@@ -30,8 +30,9 @@ public class WebConfig {
             @Override
             public void addCorsMappings(@NonNull CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("*")
-                        .allowedMethods("GET", "POST", "PUT", "DELETE");
+                        .allowedOrigins("http://localhost:5173") // 僅允許前端本機開發網址
+                        .allowedMethods("GET", "POST", "PUT", "DELETE")
+                        .allowCredentials(true); // 允許帶 cookie 等憑證
             }
         };
     }
