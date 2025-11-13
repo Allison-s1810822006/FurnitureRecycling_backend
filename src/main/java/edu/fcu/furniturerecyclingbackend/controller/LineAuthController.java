@@ -46,7 +46,7 @@ public class LineAuthController {
 
     /**
      * LINE callback API
-     * 處理 LINE 授權回傳，判斷新舊會員，回傳 profile 或 JWT。
+     * 處理 LINE 授權回傳，回傳 JSON 給前端
      * @param code LINE 授權回傳 code
      * @param state LINE 授權回傳 state
      * @param session 使用者 session
@@ -55,9 +55,11 @@ public class LineAuthController {
     @GetMapping("/callback")
     public void callback(@RequestParam String code, @RequestParam String state,
                          @NonNull HttpSession session, @NonNull HttpServletResponse resp) throws IOException {
+        resp.setContentType("application/json; charset=UTF-8");
         // 驗證 state 防止 CSRF
         if (!state.equals(session.getAttribute("LINE_STATE"))) {
-            resp.sendError(400, "Invalid state"); return;
+            resp.getWriter().write("{\"success\":false,\"message\":\"Invalid state\"}");
+            return;
         }
         // 交換 code 取得 token
         var token = lineAuthService.exchangeCodeForToken(code);
@@ -65,22 +67,18 @@ public class LineAuthController {
             // 驗證 id_token 並取得 LINE 使用者資料
             var profile = lineAuthService.verifyIdTokenAndExtractProfile(
                     token.idToken(), (String) session.getAttribute("LINE_NONCE"));
-            // 判斷是否已綁定會員
-            boolean isBound = lineAuthService.isLineUserBound(profile.getLineUserId());
-            if (isBound) {
-                // 已綁定：建立登入狀態，回傳 JWT 並導向 application 頁
-                String jwt = lineAuthService.loginWithLineUser(profile.getLineUserId());
-                session.setAttribute("JWT", jwt); // 建立 session 狀態
-                resp.sendRedirect("/application"); // 導向 application 頁
-            } else {
-                // 未綁定：回傳 LINE profile 給前端，進入基本資料填寫頁
-                session.setAttribute("LINE_PROFILE", profile); // 暫存 profile
-                resp.setContentType("application/json; charset=UTF-8");
-                resp.getWriter().write(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(profile));
-            }
+            // 查詢或建立使用者
+            lineAuthService.findOrCreateOrUpdateUser(profile);
+            // 簽發 JWT（如有）
+            String jwt = lineAuthService.loginWithLineUser(profile.getLineUserId());
+            // 回傳 JSON 給前端
+            String json = String.format("{\"success\":true,\"lineUserId\":\"%s\",\"displayName\":\"%s\",\"email\":\"%s\",\"jwt\":\"%s\",\"message\":\"LINE login success\"}",
+                    profile.getLineUserId(), profile.getDisplayName(), profile.getEmail(), jwt);
+            session.setAttribute("LINE_USER_ID", profile.getLineUserId());
+            resp.getWriter().write(json);
         } catch (Exception e) {
             logger.error("verify id_token failed", e);
-            resp.sendError(500, "verify id_token failed: " + e.getMessage());
+            resp.getWriter().write("{\"success\":false,\"message\":\"verify id_token failed: " + e.getMessage() + "\"}");
         }
     }
 }

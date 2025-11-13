@@ -176,4 +176,35 @@ public class LineAuthService {
         }
         throw new RuntimeException("LINE user not bound");
     }
+
+    /**
+     * 查詢或建立/更新使用者
+     */
+    public edu.fcu.furniturerecyclingbackend.model.AppUsers findOrCreateOrUpdateUser(edu.fcu.furniturerecyclingbackend.dto.LineProfile profile) {
+        var opt = appUsersRepository.findByLineUserId(profile.getLineUserId());
+        if (opt.isPresent()) {
+            // 更新 displayName, pictureUrl, email
+            var user = opt.get();
+            user.setLineDisplayName(profile.getDisplayName());
+            user.setLinePictureUrl(profile.getPictureUrl());
+            user.setLineEmail(profile.getEmail());
+            return appUsersRepository.save(user);
+        } else {
+            var user = new edu.fcu.furniturerecyclingbackend.model.AppUsers();
+            user.setLineUserId(profile.getLineUserId());
+            user.setLineDisplayName(profile.getDisplayName());
+            user.setLinePictureUrl(profile.getPictureUrl());
+            user.setLineEmail(profile.getEmail());
+            user.setLineBoundAt(java.time.OffsetDateTime.now());
+            user.setFullName(profile.getDisplayName()); // 預設用 displayName
+            return appUsersRepository.save(user);
+        }
+    }
+
+    /**
+     * 依 LINE userId 查詢 user
+     */
+    public java.util.Optional<edu.fcu.furniturerecyclingbackend.model.AppUsers> getUserByLineUserId(String lineUserId) {
+        return appUsersRepository.findByLineUserId(lineUserId);
+    }
 }
