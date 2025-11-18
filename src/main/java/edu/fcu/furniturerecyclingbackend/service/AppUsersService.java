@@ -7,6 +7,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import java.time.OffsetDateTime;
 
 @Service
 public class AppUsersService {
@@ -33,18 +36,89 @@ public class AppUsersService {
         return appUsersRepository.save(appUsers);
     }
 
-    // 更新現有的使用者
+    // 更新現有的使用者（merge/update non-null fields）
     public AppUsers updateUser(UUID userId, AppUsers updatedUser) {
-        if (appUsersRepository.existsById(userId)) {
-            updatedUser.setUserId(userId);  // 設定 userId 以保證資料正確
-            return appUsersRepository.save(updatedUser);
-        }
-        return null;  // 若沒有此使用者，則返回 null
+        Optional<AppUsers> opt = appUsersRepository.findById(userId);
+        if (opt.isEmpty()) return null;
+        AppUsers existing = opt.get();
+
+        // Only update fields that are provided (non-null) to avoid wiping data
+        if (updatedUser.getFullName() != null) existing.setFullName(updatedUser.getFullName());
+        if (updatedUser.getEmail() != null) existing.setEmail(updatedUser.getEmail());
+        if (updatedUser.getPhone() != null) existing.setPhone(updatedUser.getPhone());
+        // allow updating LINE fields only if provided (rare)
+        if (updatedUser.getLineDisplayName() != null) existing.setLineDisplayName(updatedUser.getLineDisplayName());
+        if (updatedUser.getLinePictureUrl() != null) existing.setLinePictureUrl(updatedUser.getLinePictureUrl());
+        if (updatedUser.getLineEmail() != null) existing.setLineEmail(updatedUser.getLineEmail());
+        // if caller explicitly sets isMember true, persist it (registration flow)
+        if (updatedUser.getIsMember() != null) existing.setIsMember(updatedUser.getIsMember());
+
+        existing.setUpdatedAt(OffsetDateTime.now());
+        return appUsersRepository.save(existing);
     }
 
-    // 刪除使用者
+    // 刪除使用者 (原為硬刪除) - 改為軟刪除實作在下面
     public void deleteUser(UUID userId) {
-        appUsersRepository.deleteById(userId);
+        // Soft-delete (downgrade + clear PII). If not found, return silently.
+        Optional<AppUsers> userOpt = appUsersRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            return; // nothing to do
+        }
+        AppUsers user = userOpt.get();
+
+        // 降級：不再視為會員
+        user.setIsMember(false);
+
+        // 清空可識別身分的欄位（視需求可調整）
+        user.setFullName(null);
+        user.setEmail(null);
+        user.setPhone(null);
+        // ⭐ 清空 LINE 相關聯欄位，確保下次同一 LINE 帳號會被當成新會員（會重新建立新筆紀錄）
+        user.setLineUserId(null);
+        user.setLineDisplayName(null);
+        user.setLinePictureUrl(null);
+        user.setLineEmail(null);
+
+        // 更新時間戳
+        user.setUpdatedAt(OffsetDateTime.now());
+
+        // Persist changes (no deleteById)
+        appUsersRepository.save(user);
+    }
+
+    /**
+     * Soft-delete / downgrade user: set isMember=false and clear PII, return ResponseEntity for controller delegation.
+     */
+    public ResponseEntity<?> deleteUserResponse(UUID userId) {
+        Optional<AppUsers> userOpt = appUsersRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+        AppUsers user = userOpt.get();
+
+        // 軟刪除：降級 + 清空個資
+        user.setIsMember(false);
+        user.setFullName(null);
+        user.setEmail(null);
+        user.setPhone(null);
+        // 清空 LINE 相關聯欄位
+        user.setLineUserId(null);
+        user.setLineDisplayName(null);
+        user.setLinePictureUrl(null);
+        user.setLineEmail(null);
+
+        user.setUpdatedAt(OffsetDateTime.now());
+
+        appUsersRepository.save(user);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Find user by LINE userId
+     */
+    public java.util.Optional<AppUsers> findByLineUserId(String lineUserId) {
+        return appUsersRepository.findByLineUserId(lineUserId);
     }
 
     /**
@@ -52,20 +126,9 @@ public class AppUsersService {
      * @param registrationDTO LINE 註冊資料
      * @return 新會員物件
      */
+    @Deprecated
     public AppUsers createUserFromLine(RegistrationDTO registrationDTO) {
-        // 建立 AppUsers 物件，填入 LINE 資料
-        AppUsers user = new AppUsers();
-        // 對應資料庫欄位
-        user.setLineUserId(registrationDTO.getLineUserId()); // line_user_id
-        user.setLineDisplayName(registrationDTO.getDisplayName()); // line_display_name
-        user.setLinePictureUrl(registrationDTO.getPictureUrl()); // line_picture_url
-        user.setLineEmail(registrationDTO.getEmail()); // line_email
-        user.setPhone(registrationDTO.getPhone()); // phone，前端補齊
-        user.setLineBoundAt(java.time.OffsetDateTime.now()); // line_bound_at，自動填入綁定時間
-        user.setFullName(registrationDTO.getFullName()); // full_name，前端補齊
-        // 其他欄位可依需求補齊
-        // 儲存至資料庫
-        return appUsersRepository.save(user);
+        throw new UnsupportedOperationException("createUserFromLine is deprecated. Use PUT /api/app-users/{userId} to update existing user after LINE login.");
     }
 
     /**
@@ -74,7 +137,7 @@ public class AppUsersService {
      */
     public AppUsers simpleLoginOrRegister(String fullName, String email, String phone) {
         if ((email == null || email.isBlank()) && (phone == null || phone.isBlank())) {
-            throw new IllegalArgumentException("請至少填寫 Email 或電話");
+            throw new IllegalArgumentException("請填寫 Email 及電話");
         }
 
         return appUsersRepository.findFirstByEmailOrPhone(email, phone)

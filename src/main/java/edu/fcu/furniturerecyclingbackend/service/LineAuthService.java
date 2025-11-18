@@ -15,6 +15,7 @@ import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import edu.fcu.furniturerecyclingbackend.config.LineProperties;
 import edu.fcu.furniturerecyclingbackend.dto.LineProfile;
 import edu.fcu.furniturerecyclingbackend.dto.LineTokenResponse;
+import edu.fcu.furniturerecyclingbackend.dto.LineUserResult;
 import edu.fcu.furniturerecyclingbackend.repository.AppUsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -27,14 +28,18 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 public class LineAuthService {
 
     private static final String EXPECTED_ISS = "https://access.line.me";
+    private static final Logger logger = LoggerFactory.getLogger(LineAuthService.class);
 
     private final LineProperties props;
     private final RestClient http = RestClient.create();
@@ -43,16 +48,21 @@ public class LineAuthService {
 
     /** 產授權網址（注意：這裡會自動 encode redirect_uri）。 */
     public String buildAuthorizeUrl(String state, String nonce) {
-        return UriComponentsBuilder.fromUriString(props.getAuthorizeUrl())
+        String scope = props.getScope(); // e.g. "openid profile email"
+        logger.info("LINE scope = {}", scope); // log actual scope sent to LINE
+        String url = UriComponentsBuilder.fromUriString(props.getAuthorizeUrl())
                 .queryParam("response_type", "code")
                 .queryParam("client_id", props.getChannelId())
                 .queryParam("redirect_uri", props.getCallbackUrl())
                 .queryParam("state", state)
-                .queryParam("scope", props.getScope()) // e.g. "openid profile email"
+                .queryParam("scope", scope) // e.g. "openid profile email"
                 .queryParam("nonce", nonce)
                  .queryParam("prompt", "consent") // 若想每次都看到同意頁
-                .build(true)
+                .build()
+                .encode()
                 .toUriString();
+        logger.debug("Line authorize URL generated: {}", url);
+        return url;
     }
 
     /** 用 code 向 LINE 換 access_token / id_token。 */
@@ -60,7 +70,7 @@ public class LineAuthService {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "authorization_code");
         form.add("code", code);
-        // 換 token 時 redirect_uri 要用「原樣字串」
+        // 換 token 時 redirect_uri 要用「原樣字串"
         form.add("redirect_uri", props.getCallbackUrl());
         form.add("client_id", props.getChannelId());
         form.add("client_secret", props.getChannelSecret());
@@ -77,6 +87,49 @@ public class LineAuthService {
         } catch (Exception e) {
             throw new RuntimeException("Exchange token failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Convenience: exchange code and verify id_token, returning LineProfile.
+     * This variant does not perform nonce/state session checks — caller is responsible for that if needed.
+     */
+    public LineProfile getProfileFromCode(String code, String state) {
+        var token = exchangeCodeForToken(code);
+        // pass null for expectedNonce (no nonce check here)
+        return verifyIdTokenAndExtractProfile(token.idToken(), null);
+    }
+
+    /**
+     * Find existing AppUsers by lineUserId or create a new one. Returns a LineUserResult
+     * indicating whether a new user was created.
+     */
+    public LineUserResult findOrCreateUser(String lineUserId, String displayName, String email, String pictureUrl) {
+        var existingOpt = appUsersRepository.findByLineUserId(lineUserId);
+        if (existingOpt.isPresent()) {
+            var user = existingOpt.get();
+            user.setLineDisplayName(displayName);
+            user.setLineEmail(email);
+            user.setLinePictureUrl(pictureUrl);
+            user.setUpdatedAt(OffsetDateTime.now());
+            appUsersRepository.save(user);
+            boolean isMember = Boolean.TRUE.equals(user.getIsMember());
+            return new LineUserResult(user, isMember);
+        }
+
+        var user = new edu.fcu.furniturerecyclingbackend.model.AppUsers();
+        // Do not set userId manually; let JPA generate it. But if you prefer, uncomment below:
+        // user.setUserId(UUID.randomUUID());
+        user.setLineUserId(lineUserId);
+        user.setFullName(displayName == null ? "" : displayName);
+        user.setEmail(email);
+        user.setLineDisplayName(displayName);
+        user.setLineEmail(email);
+        user.setLinePictureUrl(pictureUrl);
+        user.setIsMember(false);
+        user.setCreatedAt(OffsetDateTime.now());
+        user.setUpdatedAt(OffsetDateTime.now());
+        appUsersRepository.save(user);
+        return new LineUserResult(user, false); // 新建立但 not a full member yet
     }
 
     /** 驗證 LINE 的 id_token（同時支援 HS256 與 ES256），並擷取使用者資料。 */
