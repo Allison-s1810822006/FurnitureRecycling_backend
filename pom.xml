@@ -40,6 +40,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Spring Security Starter: enable Spring Security APIs used in SecurityConfig -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
         <!-- PostgresSQL Driver: 連接 PostgresSQL 資料庫用 -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -122,6 +128,19 @@
 <!--                        </exclude>-->
                     </excludes>
                 </configuration>
+            </plugin>
+            <!-- Add Spring Boot Maven plugin to repackage the jar as executable -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>3.5.4</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

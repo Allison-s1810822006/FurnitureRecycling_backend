@@ -1,21 +1,18 @@
-package edu.fcu.furniturerecyclingbackend.controller;
+package edu.fcu.furniturerecyclingbackend.controller.deprecated;
 
 import edu.fcu.furniturerecyclingbackend.service.DeleteUserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-@RestController
+// Deprecated: managed via AppUsersApiController (/api/app-users)
+// @RestController
 public class DeleteUserController {
 
-    @Autowired
-    private DeleteUserService deleteUserService;
+    public DeleteUserService deleteUserService;
 
-    // 根據 email 刪除用戶
     @DeleteMapping("/users/delete/email/{email}")
     public ResponseEntity<String> deleteUserByEmail(@PathVariable String email) {
         boolean isDeleted = deleteUserService.deleteUserByEmail(email);
@@ -27,7 +24,6 @@ public class DeleteUserController {
         }
     }
 
-    // 根據 userId 刪除用戶
     @DeleteMapping("/users/delete/{userId}")
     public ResponseEntity<String> deleteUserById(@PathVariable UUID userId) {
         boolean isDeleted = deleteUserService.deleteUserById(userId);

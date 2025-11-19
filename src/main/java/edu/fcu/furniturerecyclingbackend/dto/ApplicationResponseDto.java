@@ -14,6 +14,7 @@ public class ApplicationResponseDto {
     private UUID applicationId;
     private UUID userId;
     private String stationId;     // 從關聯取出 id，型別改為 String（DP001~DP005）
+    private String stationAddress; // 新增：站點地址，從 Station.address 取得，便利前端
     private UUID scheduleId;    // 從關聯取出 id
     private LocalDate requestedDate;
     private Integer totalItems;

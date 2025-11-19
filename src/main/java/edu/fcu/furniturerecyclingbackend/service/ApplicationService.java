@@ -187,6 +187,7 @@ public class ApplicationService {
          dto.setApplicationId(app.getApplicationId());
          dto.setUserId(app.getUser() != null ? app.getUser().getUserId() : null); // 修正：取得 AppUsers 關聯的 UUID
          dto.setStationId(app.getStation() != null ? app.getStation().getStationId() : null); // ApplicationResponseDto.stationId 型別已改為 String
+         dto.setStationAddress(app.getStation() != null ? app.getStation().getAddress() : null);
          dto.setScheduleId(app.getSchedule() != null ? app.getSchedule().getScheduleId() : null);
          dto.setRequestedDate(app.getRequestedDate());
          dto.setTotalItems(app.getTotalItems());
@@ -196,6 +197,22 @@ public class ApplicationService {
          dto.setEditable(!app.isLocked());
          dto.setCreatedAt(app.getCreatedAt());
          dto.setUpdatedAt(app.getUpdatedAt());
+         // map application items (furniture list + photos)
+         if (app.getApplicationItems() != null) {
+             var items = app.getApplicationItems().stream().map(ai -> {
+                 edu.fcu.furniturerecyclingbackend.dto.ApplicationItemDto itemDto = new edu.fcu.furniturerecyclingbackend.dto.ApplicationItemDto();
+                 itemDto.setItemId(ai.getItemId());
+                 itemDto.setApplicationId(app.getApplicationId());
+                 itemDto.setFurnitureItemId(ai.getFurnitureItemId());
+                 itemDto.setItemName(ai.getItemName());
+                 itemDto.setQuantity(ai.getQuantity());
+                 itemDto.setPhotos(ai.getPhotos());
+                 itemDto.setCreatedAt(ai.getCreatedAt());
+                 itemDto.setUpdatedAt(ai.getUpdatedAt());
+                 return itemDto;
+             }).toList();
+             dto.setItems(items);
+         }
          return dto;
      }
  }
