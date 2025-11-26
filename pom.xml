@@ -88,6 +88,13 @@
             <version>9.37</version>
         </dependency>
 
+        <!-- Google GenAI client for generative AI integration -->
+        <dependency>
+            <groupId>com.google.genai</groupId>
+            <artifactId>google-genai</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
 
     </dependencies>
 
