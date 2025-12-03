@@ -56,21 +56,22 @@ public class FurnitureConsultController {
 
                     請嚴格遵守以下服務規則並以條列式回覆（每點一行）：
                     - 本服務目前僅支援「沙發」與「床架」兩種家具；其他請回「其他」。
-                    - 只有當家具的尺寸符合系統資料庫內已登錄的可回收產品尺寸時，才視為「尺寸符合」。
+                    - 只有當家具的尺寸符合本服務規範的可回收尺寸時，才視為「尺寸符合」。
                     - 使用者必須自行將物品放置到自己選擇的回收站；本服務不代放置。
                     - 最晚放置時間：預約日期的前一天 17:00 前完成放置。
                     - 最早可預約日期：從今天起算，最早是兩天後。
                     - 費用：目前暫時不收費（未來可能調整）。
                     - 預約制：本服務採預約制；若未預約或不符合上述規定，將不受理。
                     - 服務區域：本服務目前僅限於「台中市」；其他縣市一律不受理，若使用者不在台中市請明確回覆無法受理並告知僅受理台中市。
+                    - 所有回覆不可出現「資料庫」三個字；若需表達不符合資料庫規則，請直接使用「不符合規範」。
+                    - 頁面已提供尺寸參考表，請勿在回覆中包含「尺寸是否符合規範」的項目或判斷。
 
                     回覆格式（務必遵守，前端會解析）：
                     1. 是否為可回收家具：是/否
                     2. 家具種類（僅回傳：沙發、床架、其他）
-                    3. 尺寸是否符合資料庫：是/否
-                    4. 放置說明（使用者需自行放置，以及最晚放置時間）
-                    5. 預約說明（最早可預約、預約制等）
-                    6. 費用說明
+                    3. 放置說明（使用者需自行放置，以及最晚放置時間）
+                    4. 預約說明（最早可預約、預約制等）
+                    5. 費用說明
 
                     若使用者問到其他非回收相關問題，請簡短說明本助理主要功能為大型家具回收諮詢。
                     """;
@@ -105,6 +106,9 @@ public class FurnitureConsultController {
 
             // 後處理：將模型回覆的家具類型標準化為系統內的允許值，並加入尺寸提醒
             String normalizedAnswer = normalizeAnswerAndAddSizeReminder(answer);
+            // 需求：若尺寸無法判斷的固定句子出現，直接移除該點
+            // 不輸出任何「尺寸是否符合規範」的問答項
+            normalizedAnswer = removeSizeComplianceLines(normalizedAnswer);
 
 
             // 額外回傳標準化的類型，供前端/後端直接比對資料庫
@@ -158,7 +162,7 @@ public class FurnitureConsultController {
                 }
                 // 移除尺寸提醒文句（純文字版）
                 finalAnswer = finalAnswer.replace("請勿超過所規定的參考尺寸；超過參考尺寸可能無法使用大型家具回收服務。", "");
-                // 移除一些常見自我介紹句
+                // 秮除一些常見自我介紹句
                 finalAnswer = finalAnswer.replace("嗨，我是大型家具回收小幫手。", "");
                 finalAnswer = finalAnswer.replace("嗨，我是大型家具回收小幫手！", "");
                 finalAnswer = finalAnswer.replace("我是大型家具回收小幫手。", "");
@@ -179,6 +183,10 @@ public class FurnitureConsultController {
                 String tLower = t.toLowerCase();
                 if (t.startsWith("1.") || t.startsWith("1 ") || tLower.contains("是否為可回收")) {
                     continue; // 跳過原本的第一行
+                }
+                // 移除任何與「尺寸是否符合規範/尺寸是否符合」相關的行
+                if (tLower.contains("尺寸是否符合規範") || tLower.contains("尺寸是否符合")) {
+                    continue;
                 }
                 // 跳過已在 highlight 顯示過的句子或尺寸提醒以及注意: 前綴
                 if (tLower.contains(sizeKey) || tLower.contains("注意:") || tLower.contains("注意：") || tLower.contains(svcLower) || (!decisionLower.isBlank() && tLower.contains(decisionLower))) {
@@ -202,6 +210,9 @@ public class FurnitureConsultController {
             }
             String restMd = restBuilder.toString().trim();
 
+            // 先將所有數字編號清單轉為列點清單
+            restMd = transformNumberedToBullets(restMd);
+
             // 清理 inline markdown（保留列表開頭 '* '）再轉 HTML
             restMd = sanitizeInlineMarkdown(restMd);
             // 再移除行內殘留的 '*' 或 '_'（但保留開頭作為列表標記的 '* '）
@@ -219,12 +230,15 @@ public class FurnitureConsultController {
             finalHtml = finalHtml.replaceAll("~~", "");
             finalHtml = finalHtml.replaceAll("[*_`~]+", "");
 
+            // 終端輸出防護：移除任何出現的「資料庫」三字
+            finalHtml = sanitizeNoDatabaseTerm(finalHtml);
+
             return ResponseEntity.ok(Map.of(
                     "answer", finalHtml,
                     "detectedType", detectedType,
                     "sizeWarning", sizeWarning,
                     "recyclable", recyclable,
-                    "serviceMessage", serviceMessage
+                    "serviceMessage", sanitizeNoDatabaseTerm(serviceMessage)
             ));
 
 
@@ -258,15 +272,16 @@ public class FurnitureConsultController {
 
                     回答時請嚴格遵守下列服務規則：
                     - 僅支援家具類型：沙發、床架；若非屬於這兩類請回「其他」。
-                    - 必須檢查並回報是否「尺寸符合資料庫中已登錄的可回收尺寸」。
+                    - 頁面已提供尺寸參考表，請勿在回覆中包含「尺寸是否符合」的項目或判斷。
                     - 使用者需自行將物品放置於其選擇的回收站，服務不代放置。
                     - 最晚放置時間：預約日期的前一天 17:00。
                     - 最早可預約日期：從今天起算兩天後。
                     - 費用：目前暫時不收費（未來可能調整）。
                     - 本服務採預約制；未預約或不符規定者不受理。
                     - 服務區域：本服務目前僅限於「台中市」；其他縣市不受理。若使用者不在台中市，請明確回覆不可受理並說明受理範圍。
+                    - 所有的回覆都不能出現資料庫三個字，如要表示不符合資料庫規則的，直接顯示不符合規範。
 
-                    回覆請簡短，且當被詢問到回收相關流程或規定時，務必包含：是否可回收、家具種類、尺寸是否符合、放置/預約時限、預約/費用說明。
+                    回覆請簡短，且當被詢問到回收相關流程或規定時，務必包含：是否可回收、家具種類、放置/預約時限、預約/費用說明。
                     若問題與家具回收無關，請簡短說明你主要是提供大型家具回收諮詢。
                     """;
 
@@ -313,6 +328,9 @@ public class FurnitureConsultController {
 
             // --- 後處理: 同 consult 用法，標準化、偵測類型、建立醒目提示、加入尺寸提醒 ---
             String normalizedAnswer = normalizeAnswerAndAddSizeReminder(answer);
+            // 需求：若尺寸無法判斷的固定句子出現，直接移除該點
+            // 不輸出任何「尺寸是否符合規範」的問答項
+            normalizedAnswer = removeSizeComplianceLines(normalizedAnswer);
             String detectedType = detectTypeFromAnswer(answer);
             String sizeWarning = "請勿超過頁面上顯示的參考尺寸；超過參考尺寸可能無法使用大型家具回收服務。";
 
@@ -379,30 +397,41 @@ public class FurnitureConsultController {
                 if (t.startsWith("1.") || t.startsWith("1 ") || tLower.contains("是否為可回收")) {
                     continue; // 跳過原本的第一行
                 }
+                // 移除任何與「尺寸是否符合規範/尺寸是否符合」相關的行
+                if (tLower.contains("尺寸是否符合規範") || tLower.contains("尺寸是否符合")) {
+                    continue;
+                }
+                // 跳過已在 highlight 顯示過的句子或尺寸提醒以及注意: 前綴
                 if (tLower.contains(sizeKey) || tLower.contains("注意:") || tLower.contains("注意：") || tLower.contains(svcLower) || (!decisionLower.isBlank() && tLower.contains(decisionLower))) {
                     continue;
                 }
 
-                // skip common greetings and self-introductions
+                // skip common greetings and self-introductions (e.g., '嗨', '您好', '我是大型家具回收小幫手')
                 if (tLower.startsWith("嗨") || tLower.startsWith("您好") || tLower.startsWith("你好")
                         || tLower.contains("我是大型家具回收") || tLower.contains("大型家具回收小幫手")
                         || tLower.contains("我是專門提供") || tLower.contains("我主要是提供")) {
                     continue;
                 }
 
+                // normalize line for duplication check: remove common punctuation and spaces
                 String norm = tLower.replaceAll("[\\s\\p{Punct}，。！？；：、\"'()\\[\\]<>—–-]+", "");
                 if (norm.isBlank()) continue;
-                if (seen.contains(norm)) continue;
+                if (seen.contains(norm)) continue; // duplicate
                 seen.add(norm);
 
                 restBuilder.append(line).append("\n");
             }
             String restMd = restBuilder.toString().trim();
 
+            // 先將所有數字編號清單轉為列點清單
+            restMd = transformNumberedToBullets(restMd);
+
             // 清理 inline markdown（保留列表開頭 '* '）再轉 HTML
             restMd = sanitizeInlineMarkdown(restMd);
+            // 再移除行內殘留的 '*' 或 '_'（但保留開頭作為列表標記的 '* '）
             restMd = removeLoneAsterisksAndUnderscores(restMd);
             String restHtml = markdownToSimpleHtml(restMd);
+            // 若未顯示 highlight（代表模型未明確回覆可回收但檢測為 recyclable），則把尺寸提醒放到內容底部而非頂部
             if (!showHighlight) {
                 restHtml = restHtml + highlightedSizeHtml;
             }
@@ -414,12 +443,15 @@ public class FurnitureConsultController {
             finalHtml = finalHtml.replaceAll("~~", "");
             finalHtml = finalHtml.replaceAll("[*_`~]+", "");
 
+            // 終端輸出防護：移除任何出現的「資料庫」三字
+            finalHtml = sanitizeNoDatabaseTerm(finalHtml);
+
             return ResponseEntity.ok(Map.of(
                     "answer", finalHtml,
                     "detectedType", detectedType,
                     "sizeWarning", sizeWarning,
                     "recyclable", recyclable,
-                    "serviceMessage", serviceMessage
+                    "serviceMessage", sanitizeNoDatabaseTerm(serviceMessage)
             ));
 
         } catch (Exception e) {
@@ -625,7 +657,7 @@ public class FurnitureConsultController {
          out = out.replaceAll("`(.+?)`", "$1");
          // remove any remaining isolated inline '*' or '_' between non-space characters
          out = out.replaceAll("(?<=\\S)\\*(?=\\S)", "");
-         out = out.replaceAll("(?<=\\S)_(?=\\S)", "");
+         out = out.replaceAll("(?<=\\S)_ (?=\\S)", "");
          return out;
      }
 
@@ -671,7 +703,7 @@ public class FurnitureConsultController {
 
         if (!containsStandard) {
             // 改為純文字行，避免 Markdown 標記
-            sb.append("系統判定家具類型：").append(detectedType).append("（系統資料庫僅登錄「沙發」與「床架」，若非屬於這兩類請選擇「其他」）\n");
+            sb.append("系統判定家具類型：").append(detectedType).append("（本服務目前僅支援「沙發」與「床架」，若非屬於這兩類請選擇「其他」）\n");
         }
 
         // 注意：尺寸提醒改為在回應頂部以醒目樣式顯示，避免在內容中重複出現
@@ -718,5 +750,51 @@ public class FurnitureConsultController {
          if (fallback != null && !fallback.isBlank()) return fallback;
          return recyclable ? "此家具類型可使用本服務。" : "抱歉，本服務目前不支援該家具類型。";
      }
+
+    // 輸出防護：移除任何「資料庫」三個字，避免違反回覆規則
+    private String sanitizeNoDatabaseTerm(String s) {
+        if (s == null || s.isBlank()) return s == null ? "" : s;
+        String out = s;
+        // 先處理常見片語，避免僅替換單字導致奇怪字串（例如：不符合規範規則）
+        out = out.replace("不符合資料庫規則", "不符合規範");
+        out = out.replace("資料庫規則", "規範");
+        out = out.replace("系統資料庫", "系統");
+        // 最後移除殘留的「資料庫」三字
+        out = out.replace("資料庫", "規範");
+        return out;
+    }
+
+    // 將回覆中「尺寸是否符合規範」但因未收到尺寸或無法判斷而給出的那一點整行移除（僅限否且缺少尺寸資訊）
+    private String removeSizeComplianceLines(String text) {
+        if (text == null || text.isBlank()) return text == null ? "" : text;
+        StringBuilder out = new StringBuilder();
+        String[] lines = text.split("\\r?\\n", -1);
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) continue;
+            String lower = trimmed.toLowerCase();
+            boolean isSizeLine = (lower.contains("尺寸是否符合規範") || lower.contains("尺寸是否符合"));
+            if (isSizeLine) {
+                // 一律移除尺寸是否符合的列點，避免與上方尺寸表重複
+                continue;
+            }
+            out.append(line).append('\n');
+        }
+        return out.toString().trim();
+    }
+
+    // 將每行開頭形如 "1. 文案"、"2. 文案" 的數字清單轉為 "* 文案" 列點
+    private String transformNumberedToBullets(String text) {
+        if (text == null || text.isBlank()) return text == null ? "" : text;
+        StringBuilder out = new StringBuilder();
+        String[] lines = text.split("\\r?\\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            String replaced = line.replaceFirst("^\\s*\\d+\\.\\s+", "* ");
+            out.append(replaced);
+            if (i < lines.length - 1) out.append('\n');
+        }
+        return out.toString();
+    }
 
 }
